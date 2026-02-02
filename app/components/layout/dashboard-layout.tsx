@@ -14,7 +14,7 @@ import { useState } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { useAuthStore } from "~/store/auth-store";
+import { useAuthStore } from "~/modules/auth/auth.store";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -92,7 +92,7 @@ export default function DashboardLayout() {
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

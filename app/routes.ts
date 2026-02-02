@@ -22,6 +22,19 @@ export default [
   ]),
 
   // =====================
+  // Settings Layout (Customer)
+  // =====================
+  layout("components/layout/settings-layout.tsx", [
+    ...prefix("/settings", [
+      index("routes/settings/account-settings.tsx"),
+      route("security", "routes/settings/security-settings.tsx"),
+      route("notifications", "routes/settings/notification-settings.tsx"),
+      route("referrals", "routes/settings/referral-rewards.tsx"),
+      route("payments", "routes/settings/payment-settings.tsx"),
+    ]),
+  ]),
+
+  // =====================
   // Dashboard Layout
   // =====================
   layout("components/layout/dashboard-layout.tsx", [

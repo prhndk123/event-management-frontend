@@ -46,6 +46,7 @@ export default function LoginPage() {
           role: data.role,
           point: data.point,
           referralCode: data.referralCode,
+          phone: data.phone,
         },
         token: data.accessToken,
       });

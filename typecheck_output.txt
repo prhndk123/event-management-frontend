@@ -1,0 +1,6 @@
+
+> typecheck
+> react-router typegen && tsc
+
+app/data/mock-data.ts(244,3): error TS2820: Type '"customer"' is not assignable to type '"CUSTOMER" | "ORGANIZER"'. Did you mean '"CUSTOMER"'?
+app/data/mock-data.ts(255,3): error TS2820: Type '"organizer"' is not assignable to type '"CUSTOMER" | "ORGANIZER"'. Did you mean '"ORGANIZER"'?
