@@ -9,33 +9,16 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { useAuthStore } from "~/store/auth-store";
 import { toast } from "sonner";
-
-const registerSchema = z
-  .object({
-    name: z.string().min(2, "Name must be at least 2 characters").max(50),
-    email: z.string().email("Please enter a valid email"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
-    role: z.enum(["customer", "organizer"]),
-    referralCode: z.string().optional(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-type RegisterFormData = z.infer<typeof registerSchema>;
+import { registerSchema, RegisterSchema } from "~/modules/auth/auth.schema";
+import { useAuthStore } from "~/modules/auth/auth.store";
+import { useMutation } from "@tanstack/react-query";
+import { authService } from "~/modules/auth/auth.service";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { register: registerUser, isLoading } = useAuthStore();
+  const { register: registerUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
-
-  const defaultRole =
-    searchParams.get("role") === "organizer" ? "organizer" : "customer";
 
   const {
     register,
@@ -43,37 +26,39 @@ export default function RegisterPage() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<RegisterFormData>({
+  } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
       email: "",
       password: "",
       confirmPassword: "",
-      role: defaultRole,
+      role: "CUSTOMER",
       referralCode: "",
     },
   });
 
   const selectedRole = watch("role");
 
-  const onSubmit = async (data: RegisterFormData) => {
-    try {
-      await registerUser({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role: data.role,
-        referralCode: data.referralCode,
-      });
+  const { mutate, isPending } = useMutation({
+    mutationFn: (data: RegisterSchema) => authService.register(data),
+    onSuccess: (data) => {
+      // kalau backend kamu balikin user/token
+      registerUser(data);
+
       toast.success("Account created successfully!");
-      if (data.referralCode) {
-        toast.success("You received 10,000 points from the referral!");
-      }
-      navigate("/");
-    } catch (error) {
-      toast.error("Registration failed. Please try again.");
-    }
+      navigate("/login"); // ⬅️ redirect ke login
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message ||
+          "Registration failed. Please try again.",
+      );
+    },
+  });
+
+  const onSubmit = (data: RegisterSchema) => {
+    mutate(data);
   };
 
   return (
@@ -126,21 +111,21 @@ export default function RegisterPage() {
               <RadioGroup
                 value={selectedRole}
                 onValueChange={(value) =>
-                  setValue("role", value as "customer" | "organizer")
+                  setValue("role", value as "CUSTOMER" | "ORGANIZER")
                 }
                 className="grid grid-cols-2 gap-4"
               >
                 <Label
-                  htmlFor="customer"
+                  htmlFor="CUSTOMER"
                   className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedRole === "customer"
+                    selectedRole === "CUSTOMER"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
                   <RadioGroupItem
-                    value="customer"
-                    id="customer"
+                    value="CUSTOMER"
+                    id="CUSTOMER"
                     className="sr-only"
                   />
                   <span className="text-2xl mb-2">🎫</span>
@@ -150,16 +135,16 @@ export default function RegisterPage() {
                   </span>
                 </Label>
                 <Label
-                  htmlFor="organizer"
+                  htmlFor="ORGANIZER"
                   className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedRole === "organizer"
+                    selectedRole === "ORGANIZER"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
                   <RadioGroupItem
-                    value="organizer"
-                    id="organizer"
+                    value="ORGANIZER"
+                    id="ORGANIZER"
                     className="sr-only"
                   />
                   <span className="text-2xl mb-2">🎪</span>
@@ -264,9 +249,9 @@ export default function RegisterPage() {
               type="submit"
               className="w-full btn-gradient"
               size="lg"
-              disabled={isLoading}
+              disabled={isPending}
             >
-              {isLoading ? (
+              {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Creating account...

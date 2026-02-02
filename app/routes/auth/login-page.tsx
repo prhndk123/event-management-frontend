@@ -32,7 +32,7 @@ export default function LoginPage() {
     },
   });
 
-  const { mutate: login, isPending: isLoading } = useMutation({
+  const { mutate: login, isPending } = useMutation({
     mutationFn: async (data: LoginSchema) => {
       return await authService.login(data);
     },
@@ -45,6 +45,7 @@ export default function LoginPage() {
           avatar: data.avatar,
           role: data.role,
           point: data.point,
+          referralCode: data.referralCode,
         },
         token: data.accessToken,
       });
@@ -154,9 +155,9 @@ export default function LoginPage() {
               type="submit"
               className="w-full btn-gradient"
               size="lg"
-              disabled={isLoading}
+              disabled={isPending}
             >
-              {isLoading ? (
+              {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Signing in...

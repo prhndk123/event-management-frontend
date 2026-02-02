@@ -22,14 +22,14 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { useAuthStore } from "~/store/auth-store";
+import { useAuthStore } from "~/modules/auth/auth.store";
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();
   const location = useLocation();
 
-  const isOrganizer = user?.role === "ORGANIZER";
+  const isOrganizer = user?.role.toUpperCase() === "ORGANIZER";
 
   const navLinks = [
     { href: "/events", label: "Browse Events" },
@@ -103,7 +103,10 @@ export function Navbar() {
                       className="rounded-full"
                     >
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarImage
+                          src={user.avatar ?? undefined}
+                          alt={user.name}
+                        />
                         <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                     </Button>

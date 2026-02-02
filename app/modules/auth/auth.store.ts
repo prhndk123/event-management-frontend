@@ -7,9 +7,10 @@ interface User {
   id: number;
   name: string;
   email: string;
-  avatar: string | null;
+  avatar?: string | null | undefined;
   role: string;
   point: number;
+  referralCode: string;
 }
 
 interface AuthState {
@@ -29,6 +30,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
 
+      // LOGIN
       async login(payload) {
         const data = await authService.login(payload);
 
@@ -41,6 +43,7 @@ export const useAuthStore = create<AuthState>()(
             avatar: data.avatar,
             role: data.role,
             point: data.point,
+            referralCode: data.referralCode,
           },
           token: data.accessToken, // Assuming API returns accessToken here too if we keep this action
           isAuthenticated: true,
@@ -48,6 +51,7 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem("accessToken", data.accessToken);
       },
 
+      // REGISTER
       async register(payload) {
         const data = await authService.register(payload);
 
