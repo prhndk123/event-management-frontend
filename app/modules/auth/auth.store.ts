@@ -11,16 +11,19 @@ interface User {
   role: string;
   point: number;
   referralCode: string;
+  phone: string;
 }
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  hasHydrated: boolean;
   login: (payload: LoginSchema) => Promise<void>;
   register: (payload: RegisterSchema) => Promise<void>;
   logout: () => void;
   setAuth: (data: { user: User; token: string }) => void;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,6 +32,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      hasHydrated: false,
 
       // LOGIN
       async login(payload) {
@@ -44,6 +48,7 @@ export const useAuthStore = create<AuthState>()(
             role: data.role,
             point: data.point,
             referralCode: data.referralCode,
+            phone: data.phone,
           },
           token: data.accessToken, // Assuming API returns accessToken here too if we keep this action
           isAuthenticated: true,
@@ -79,6 +84,12 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
         });
       },
+
+      setHasHydrated: (state) => {
+        set({
+          hasHydrated: state,
+        });
+      },
     }),
     {
       name: "auth-storage",
@@ -87,6 +98,9 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );
