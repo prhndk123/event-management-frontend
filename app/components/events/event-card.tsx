@@ -24,7 +24,7 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
         className="group block card-elevated overflow-hidden"
       >
         {/* Image */}
-        <div className="relative aspect-[16/10] overflow-hidden">
+        <div className="relative aspect-16/10 overflow-hidden">
           <img
             src={event.image}
             alt={event.title}
