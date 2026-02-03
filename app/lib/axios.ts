@@ -6,3 +6,12 @@ export const axiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+export const axiosInstance2 = axios.create({
+  baseURL:
+    import.meta.env.VITE_BACKENDLESS_API_URL ||
+    "https://hotshotfinger-us.backendless.app",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
