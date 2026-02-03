@@ -5,10 +5,16 @@ export const profileUpdateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(50),
   email: z.string().email("Please enter a valid email"),
   phone: z.string().optional(),
-  avatar: z.string().optional(),
+  avatar: z.instanceof(File, { message: "Please upload an image" }).optional(),
 });
 
 export type ProfileUpdateSchema = z.infer<typeof profileUpdateSchema>;
+
+export const AvatarSchema = z.object({
+  avatar: z.instanceof(File, { message: "Please upload an image" }),
+});
+
+export type AvatarSchema = z.infer<typeof AvatarSchema>;
 
 // ============= Password Settings =============
 export const changePasswordSchema = z
