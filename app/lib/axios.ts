@@ -7,11 +7,15 @@ export const axiosInstance = axios.create({
   },
 });
 
-export const axiosInstance2 = axios.create({
-  baseURL:
-    import.meta.env.VITE_BACKENDLESS_API_URL ||
-    "https://hotshotfinger-us.backendless.app",
-  headers: {
-    "Content-Type": "application/json",
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
   },
-});
+  (error) => {
+    return Promise.reject(error);
+  },
+);
