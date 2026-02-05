@@ -35,7 +35,7 @@ export function Navbar() {
     setIsAvatarError(false);
   }, [user?.avatar]);
 
-  const isOrganizer = user?.role.toUpperCase() === "ORGANIZER";
+  const isOrganizer = user?.role?.toUpperCase() === "ORGANIZER";
 
   const navLinks = [
     { href: "/events", label: "Browse Events" },

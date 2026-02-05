@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, Navigate } from "react-router";
 import {
   User,
   Shield,
@@ -14,6 +14,7 @@ import {
 import { useState, useEffect } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 import { useAuthStore } from "~/modules/auth/auth.store";
 
 interface SettingsLink {
@@ -44,9 +45,9 @@ const settingsLinks: SettingsLink[] = [
 export default function SettingsLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated } = useAuthStore();
 
-  const isCustomer = user?.role.toUpperCase() === "CUSTOMER";
+  const isCustomer = user?.role?.toUpperCase() === "CUSTOMER";
 
   const filteredLinks = settingsLinks.filter(
     (link) => !link.customerOnly || isCustomer,
@@ -68,6 +69,23 @@ export default function SettingsLayout() {
   useEffect(() => {
     setDrawerOpen(false);
   }, [location.pathname]);
+
+  // Wait for hydration before checking auth
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-md p-8">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-4 w-64 mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

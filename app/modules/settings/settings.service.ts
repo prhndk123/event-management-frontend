@@ -1,4 +1,4 @@
-import { axiosInstance, axiosInstance2 } from "~/lib/axios";
+import { axiosInstance } from "~/lib/axios";
 import type {
   AvatarSchema,
   ChangePasswordSchema,
@@ -7,8 +7,9 @@ import type {
 } from "./settings.schema";
 
 interface ImageUrlResponse {
-  fileURL: string;
-  filePath: string;
+  url: string;
+  message: string;
+  public_id?: string;
 }
 export interface UpdateProfilePayload {
   name: string;
@@ -21,10 +22,8 @@ export const settingsService = {
   async uploadAvatar(payload: AvatarSchema) {
     const formData = new FormData();
     formData.append("file", payload.avatar);
-    const folderName = "avatars";
-    const fileName = `avatar_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    const response = await axiosInstance2.post<ImageUrlResponse>(
-      `/api/files/${folderName}/${fileName}`,
+    const response = await axiosInstance.post<ImageUrlResponse>(
+      `/media/upload`,
       formData,
       {
         headers: {
@@ -32,7 +31,7 @@ export const settingsService = {
         },
       },
     );
-    return response.data;
+    return { fileURL: response.data.url };
   },
   async updateProfile(userId: number, payload: UpdateProfilePayload) {
     const { data } = await axiosInstance.patch(

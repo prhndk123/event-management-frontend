@@ -78,7 +78,7 @@ export default function AccountSettingsPage() {
     mutationFn: async (data: ProfileUpdateSchema) => {
       let avatarUrl: string | undefined | null = user?.avatar;
 
-      // Step 1: Upload avatar to axiosInstance2 if there's a new file
+      // Step 1: Upload avatar to Cloudinary via backend if there's a new file
       if (avatarFile) {
         const response = await settingsService.uploadAvatar({
           avatar: avatarFile,
