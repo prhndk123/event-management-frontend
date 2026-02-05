@@ -96,16 +96,13 @@ export default function AccountSettingsPage() {
 
       return await settingsService.updateProfile(user!.id, payload);
     },
-    onSuccess: () => {
-      // Update auth store with new user data
+    onSuccess: (data) => {
+      // Update auth store with new user data from backend response
       if (user) {
         setAuth({
           user: {
             ...user,
-            name: formData?.name ?? user.name,
-            email: formData?.email ?? user.email,
-            phone: formData?.phone ?? user.phone,
-            avatar: avatarPreview ?? user.avatar,
+            ...data, // Use the actual updated user data from backend
           },
           token: localStorage.getItem("accessToken") ?? "",
         });
@@ -118,9 +115,12 @@ export default function AccountSettingsPage() {
       setConfirmDialogOpen(false);
       toast.success("Profile updated successfully!");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Update profile error:", error);
-      toast.error("Failed to update profile. Please try again.");
+      const message =
+        error.response?.data?.message ||
+        "Failed to update profile. Please try again.";
+      toast.error(message);
     },
   });
 
