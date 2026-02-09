@@ -46,6 +46,7 @@ import {
 import { settingsService } from "~/modules/settings/settings.service";
 import { useAuthStore } from "~/modules/auth/auth.store";
 import { formatDateTime } from "~/types";
+import { useNavigate } from "react-router";
 
 // Mock login history data
 const loginHistory = [
@@ -74,6 +75,7 @@ const loginHistory = [
 
 export default function SecuritySettingsPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -101,6 +103,7 @@ export default function SecuritySettingsPage() {
       setConfirmDialogOpen(false);
       resetPasswordForm();
       setPendingData(null);
+      // navigate("/login");
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to update password");

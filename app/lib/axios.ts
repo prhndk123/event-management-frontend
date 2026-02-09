@@ -1,51 +1,36 @@
-import axios, { AxiosError } from "axios";
+import axios from "axios";
+import { useAuthStore } from "~/modules/auth/auth.store";
 
 export const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000, // 30 seconds
+  withCredentials: true,
 });
 
-// Request interceptor to attach JWT token
-axiosInstance.interceptors.request.use(
-  (config) => {
-    // Get token from localStorage
-    const token = localStorage.getItem("accessToken");
+export const refreshInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  withCredentials: true,
+});
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for error handling
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    // Handle 401 Unauthorized - token expired or invalid
-    if (error.response?.status === 401) {
-      // Clear auth data
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("auth-storage");
-
-      // Redirect to login page
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-        window.location.href = "/login?redirect=" + encodeURIComponent(window.location.pathname);
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response.status === 401 &&
+      error.response?.data?.message === "Token Expired" &&
+      !originalRequest._retry
+    ) {
+      try {
+        await refreshInstance.post("/auth/refresh");
+        return axiosInstance(originalRequest);
+      } catch (error) {
+        useAuthStore.getState().logout();
+        return Promise.reject(error);
       }
     }
-
-    // Handle 403 Forbidden - insufficient permissions
-    if (error.response?.status === 403) {
-      console.error("Access forbidden:", error.response.data);
-    }
-
     return Promise.reject(error);
-  }
+  },
 );
