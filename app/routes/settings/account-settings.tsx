@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Copy, Check } from "lucide-react";
+import { Camera, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Skeleton } from "~/components/ui/skeleton";
@@ -32,18 +32,27 @@ import {
   profileUpdateSchema,
   type ProfileUpdateSchema,
 } from "~/modules/settings/settings.schema";
+import {
+  settingsService,
+  type UpdateProfilePayload,
+} from "~/modules/settings/settings.service";
 import { formatDate } from "~/types";
+import { useMutation } from "@tanstack/react-query";
 
 export default function AccountSettingsPage() {
-  const { user, hasHydrated } = useAuthStore();
+  const { user, hasHydrated, setAuth } = useAuthStore();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [isAvatarError, setIsAvatarError] = useState(false);
+  const [formData, setFormData] = useState<ProfileUpdateSchema | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<ProfileUpdateSchema>({
     resolver: zodResolver(profileUpdateSchema),
@@ -51,6 +60,7 @@ export default function AccountSettingsPage() {
       name: user?.name ?? "",
       email: user?.email ?? "",
       phone: user?.phone ?? "",
+      avatar: undefined,
     },
   });
   useEffect(() => {
@@ -63,6 +73,94 @@ export default function AccountSettingsPage() {
     }
   }, [user, hasHydrated, reset]);
 
+  // IMPORTANT: All hooks must be called before any early returns
+  const { mutateAsync: updateProfile, isPending } = useMutation({
+    mutationFn: async (data: ProfileUpdateSchema) => {
+      let avatarUrl: string | undefined | null = user?.avatar;
+
+      // Step 1: Upload avatar to Cloudinary via backend if there's a new file
+      if (avatarFile) {
+        const response = await settingsService.uploadAvatar({
+          avatar: avatarFile,
+        });
+        avatarUrl = response.fileURL;
+      }
+
+      // Step 2: Save profile data with avatar URL to axiosInstance
+      const payload: UpdateProfilePayload = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        avatar: avatarUrl ?? undefined,
+      };
+
+      return await settingsService.updateProfile(user!.id, payload);
+    },
+    onSuccess: (data) => {
+      // Update auth store with new user data from backend response
+      if (user) {
+        setAuth({
+          user: {
+            ...user,
+            ...data, // Use the actual updated user data from backend
+          },
+          token: localStorage.getItem("accessToken") ?? "",
+        });
+      }
+      // Reset states
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setIsAvatarError(false);
+      setFormData(null);
+      setConfirmDialogOpen(false);
+      toast.success("Profile updated successfully!");
+    },
+    onError: (error: any) => {
+      console.error("Update profile error:", error);
+      const message =
+        error.response?.data?.message ||
+        "Failed to update profile. Please try again.";
+      toast.error(message);
+    },
+  });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Store file for upload
+      setAvatarFile(file);
+      setIsAvatarError(false);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onSubmit = (data: ProfileUpdateSchema) => {
+    setFormData(data);
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (formData) {
+      await updateProfile(formData);
+    }
+  };
+
+  const handleCopyReferral = () => {
+    if (user?.referralCode) {
+      navigator.clipboard.writeText(user.referralCode);
+      setCopied(true);
+      toast.success("Referral code copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Early return for loading state - AFTER all hooks
   if (!hasHydrated) {
     return (
       <div className="space-y-6">
@@ -138,36 +236,6 @@ export default function AccountSettingsPage() {
     );
   }
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const onSubmit = (data: ProfileUpdateSchema) => {
-    setConfirmDialogOpen(true);
-  };
-
-  const handleConfirmSave = () => {
-    // In a real app, this would call an API
-    toast.success("Profile updated successfully!");
-    setConfirmDialogOpen(false);
-  };
-
-  const handleCopyReferral = () => {
-    if (user?.referralCode) {
-      navigator.clipboard.writeText(user.referralCode);
-      setCopied(true);
-      toast.success("Referral code copied!");
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -193,9 +261,18 @@ export default function AccountSettingsPage() {
                 <Avatar className="h-24 w-24">
                   <AvatarImage
                     src={avatarPreview ?? user?.avatar ?? undefined}
+                    onLoadingStatusChange={(status) => {
+                      setIsAvatarError(status === "error");
+                      if (status === "error") {
+                        console.error("Avatar image failed to load");
+                      }
+                    }}
                   />
+                  {/* Only show fallback initials if there is no image source OR if image failed to load */}
                   <AvatarFallback className="text-2xl">
-                    {user?.name?.charAt(0) ?? "U"}
+                    {!(avatarPreview ?? user?.avatar) || isAvatarError
+                      ? (user?.name?.charAt(0) ?? "U")
+                      : null}
                   </AvatarFallback>
                 </Avatar>
                 <label
@@ -328,22 +405,36 @@ export default function AccountSettingsPage() {
       </Card>
 
       {/* Confirmation Dialog */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+      <Dialog
+        open={confirmDialogOpen}
+        onOpenChange={(open) => !isPending && setConfirmDialogOpen(open)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Save Changes?</DialogTitle>
             <DialogDescription>
               Are you sure you want to update your profile information?
+              {avatarFile && " A new profile picture will also be uploaded."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setConfirmDialogOpen(false)}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button onClick={handleConfirmSave}>Confirm</Button>
+            <Button onClick={handleConfirmSave} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

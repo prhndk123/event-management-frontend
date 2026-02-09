@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Monitor, Smartphone, MapPin } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Monitor,
+  Smartphone,
+  MapPin,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -15,7 +23,6 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { Separator } from "~/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -34,10 +41,10 @@ import {
 } from "~/components/ui/dialog";
 import {
   changePasswordSchema,
-  resetPasswordSchema,
   type ChangePasswordSchema,
-  type ResetPasswordSchema,
 } from "~/modules/settings/settings.schema";
+import { settingsService } from "~/modules/settings/settings.service";
+import { useAuthStore } from "~/modules/auth/auth.store";
 import { formatDateTime } from "~/types";
 
 // Mock login history data
@@ -66,10 +73,14 @@ const loginHistory = [
 ];
 
 export default function SecuritySettingsPage() {
+  const { user } = useAuthStore();
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingData, setPendingData] = useState<ChangePasswordSchema | null>(
+    null,
+  );
 
   const {
     register: registerPassword,
@@ -80,28 +91,31 @@ export default function SecuritySettingsPage() {
     resolver: zodResolver(changePasswordSchema),
   });
 
-  const {
-    register: registerReset,
-    handleSubmit: handleResetSubmit,
-    formState: { errors: resetErrors },
-  } = useForm<ResetPasswordSchema>({
-    resolver: zodResolver(resetPasswordSchema),
+  const { mutate: changePassword, isPending } = useMutation({
+    mutationFn: async (data: ChangePasswordSchema) => {
+      if (!user) throw new Error("User not found");
+      return await settingsService.changePassword(user.id, data);
+    },
+    onSuccess: () => {
+      toast.success("Password updated successfully!");
+      setConfirmDialogOpen(false);
+      resetPasswordForm();
+      setPendingData(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update password");
+    },
   });
 
   const onPasswordSubmit = (data: ChangePasswordSchema) => {
+    setPendingData(data);
     setConfirmDialogOpen(true);
   };
 
   const handleConfirmPasswordChange = () => {
-    // In a real app, this would call an API
-    toast.success("Password updated successfully!");
-    setConfirmDialogOpen(false);
-    resetPasswordForm();
-  };
-
-  const onResetSubmit = (data: ResetPasswordSchema) => {
-    // In a real app, this would call an API
-    toast.success("Password reset email sent! Check your inbox.");
+    if (pendingData) {
+      changePassword(pendingData);
+    }
   };
 
   return (
@@ -219,41 +233,15 @@ export default function SecuritySettingsPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="mt-4" type="submit">
-              Update Password
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-
-      {/* Reset Password Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Forgot Password?</CardTitle>
-          <CardDescription>
-            Enter your email to receive a password reset link.
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleResetSubmit(onResetSubmit)}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="resetEmail">Email Address</Label>
-              <Input
-                id="resetEmail"
-                type="email"
-                {...registerReset("email")}
-                placeholder="Enter your email"
-              />
-              {resetErrors.email && (
-                <p className="text-sm text-destructive">
-                  {resetErrors.email.message}
-                </p>
+            <Button className="mt-4" type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Password"
               )}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="mt-4" type="submit" variant="outline">
-              Send Reset Link
             </Button>
           </CardFooter>
         </form>
@@ -321,10 +309,20 @@ export default function SecuritySettingsPage() {
             <Button
               variant="outline"
               onClick={() => setConfirmDialogOpen(false)}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button onClick={handleConfirmPasswordChange}>Confirm</Button>
+            <Button onClick={handleConfirmPasswordChange} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

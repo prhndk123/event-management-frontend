@@ -12,7 +12,7 @@ import {
   Plus,
   Settings,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -26,10 +26,16 @@ import { useAuthStore } from "~/modules/auth/auth.store";
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAvatarError, setIsAvatarError] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();
   const location = useLocation();
 
-  const isOrganizer = user?.role.toUpperCase() === "ORGANIZER";
+  // Reset avatar error when user avatar changes
+  useEffect(() => {
+    setIsAvatarError(false);
+  }, [user?.avatar]);
+
+  const isOrganizer = user?.role?.toUpperCase() === "ORGANIZER";
 
   const navLinks = [
     { href: "/events", label: "Browse Events" },
@@ -106,8 +112,15 @@ export function Navbar() {
                         <AvatarImage
                           src={user.avatar ?? undefined}
                           alt={user.name}
+                          onLoadingStatusChange={(status) =>
+                            setIsAvatarError(status === "error")
+                          }
                         />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>
+                          {!user.avatar || isAvatarError
+                            ? user.name.charAt(0)
+                            : null}
+                        </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
@@ -140,7 +153,7 @@ export function Navbar() {
                     ) : (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link to="/profile" className="cursor-pointer">
+                          <Link to="/settings" className="cursor-pointer">
                             <User className="h-4 w-4 mr-2" />
                             Profile
                           </Link>

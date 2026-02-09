@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, Navigate } from "react-router";
 import {
   Calendar,
   LayoutDashboard,
@@ -10,10 +10,11 @@ import {
   Menu,
   ChevronLeft,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
+import { Skeleton } from "~/components/ui/skeleton";
 import { useAuthStore } from "~/modules/auth/auth.store";
 
 const sidebarLinks = [
@@ -28,8 +29,36 @@ const sidebarLinks = [
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isAvatarError, setIsAvatarError] = useState(false);
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated } = useAuthStore();
+
+  useEffect(() => {
+    setIsAvatarError(false);
+  }, [user?.avatar]);
+
+  // Wait for hydration before checking auth
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-md p-8">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-4 w-64 mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to home if not an organizer
+  const isOrganizer = user.role?.toUpperCase() === "ORGANIZER";
+  if (!isOrganizer) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -92,8 +121,16 @@ export default function DashboardLayout() {
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
-                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                <AvatarImage
+                  src={user.avatar ?? undefined}
+                  alt={user.name}
+                  onLoadingStatusChange={(status) =>
+                    setIsAvatarError(status === "error")
+                  }
+                />
+                <AvatarFallback>
+                  {!user.avatar || isAvatarError ? user.name.charAt(0) : null}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{user.name}</p>
