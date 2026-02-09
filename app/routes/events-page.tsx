@@ -1,7 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
-import { Search, SlidersHorizontal, X, Calendar } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Calendar, Loader2 } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 import {
@@ -13,55 +14,82 @@ import {
 } from '~/components/ui/select';
 import { EventCard } from '~/components/events/event-card';
 import { EmptyState } from '~/components/shared/empty-state';
-import { useEventStore } from '~/store/event-store';
 import { EVENT_CATEGORIES, LOCATIONS, EventCategory } from '~/types';
+import * as eventService from '~/services/event.service';
+
+// Define filter types that include 'all' option
+type CategoryFilter = EventCategory | 'all';
+type PriceRangeFilter = 'all' | 'free' | 'paid';
+
+interface EventFilters {
+  category: CategoryFilter;
+  location: string;
+  search: string;
+  priceRange: PriceRangeFilter;
+}
 
 export default function EventsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
-  
-  const { 
-    filters, 
-    setFilters, 
-    resetFilters, 
-    getFilteredEvents 
-  } = useEventStore();
+
+  // Get initial category from URL (validate it's a valid category)
+  const initialCategory = searchParams.get('category');
+  const validCategory: CategoryFilter = EVENT_CATEGORIES.some(c => c.value === initialCategory)
+    ? (initialCategory as EventCategory)
+    : 'all';
+
+  // Filter state
+  const [filters, setFiltersState] = useState<EventFilters>({
+    category: validCategory,
+    location: searchParams.get('location') || 'all',
+    search: '',
+    priceRange: 'all',
+  });
 
   // Debounced search
   const [searchInput, setSearchInput] = useState(filters.search);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      setFilters({ search: searchInput });
+      setFiltersState(prev => ({ ...prev, search: searchInput }));
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput, setFilters]);
+  }, [searchInput]);
 
-  // Sync URL params with filters
-  useEffect(() => {
-    const category = searchParams.get('category');
-    const location = searchParams.get('location');
-    
-    if (category && EVENT_CATEGORIES.some(c => c.value === category)) {
-      setFilters({ category: category as EventCategory });
-    }
-    if (location && LOCATIONS.includes(location)) {
-      setFilters({ location });
-    }
-  }, [searchParams, setFilters]);
+  // Fetch events from API
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['events', filters],
+    queryFn: () => eventService.getEvents({
+      category: filters.category === 'all' ? undefined : filters.category,
+      location: filters.location === 'all' ? undefined : filters.location,
+      search: filters.search || undefined,
+      priceRange: filters.priceRange === 'all' ? undefined : filters.priceRange,
+      page: 1,
+      take: 100,
+    }),
+  });
 
-  const filteredEvents = useMemo(() => getFilteredEvents(), [getFilteredEvents, filters]);
+  const events = data?.data || [];
 
-  const hasActiveFilters = 
-    filters.category !== 'all' || 
-    filters.location !== 'all' || 
+  const hasActiveFilters =
+    filters.category !== 'all' ||
+    filters.location !== 'all' ||
     filters.priceRange !== 'all' ||
     filters.search;
 
   const handleClearFilters = () => {
-    resetFilters();
+    setFiltersState({
+      category: 'all',
+      location: 'all',
+      search: '',
+      priceRange: 'all',
+    });
     setSearchInput('');
     setSearchParams({});
+  };
+
+  const setFilters = (newFilters: Partial<EventFilters>) => {
+    setFiltersState(prev => ({ ...prev, ...newFilters }));
   };
 
   return (
@@ -71,7 +99,7 @@ export default function EventsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Browse Events</h1>
           <p className="text-muted-foreground">
-            Discover {filteredEvents.length} amazing events near you
+            {isLoading ? 'Loading events...' : `Discover ${events.length} amazing events near you`}
           </p>
         </div>
 
@@ -109,7 +137,7 @@ export default function EventsPage() {
             <div className="hidden lg:flex items-center gap-3">
               <Select
                 value={filters.category}
-                onValueChange={(value) => setFilters({ category: value as EventCategory | 'all' })}
+                onValueChange={(value) => setFilters({ category: value as CategoryFilter })}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Category" />
@@ -143,7 +171,7 @@ export default function EventsPage() {
 
               <Select
                 value={filters.priceRange}
-                onValueChange={(value) => setFilters({ priceRange: value as 'all' | 'free' | 'paid' })}
+                onValueChange={(value) => setFilters({ priceRange: value as PriceRangeFilter })}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Price" />
@@ -179,7 +207,7 @@ export default function EventsPage() {
             >
               <Select
                 value={filters.category}
-                onValueChange={(value) => setFilters({ category: value as EventCategory | 'all' })}
+                onValueChange={(value) => setFilters({ category: value as CategoryFilter })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Category" />
@@ -213,7 +241,7 @@ export default function EventsPage() {
 
               <Select
                 value={filters.priceRange}
-                onValueChange={(value) => setFilters({ priceRange: value as 'all' | 'free' | 'paid' })}
+                onValueChange={(value) => setFilters({ priceRange: value as PriceRangeFilter })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Price" />
@@ -240,9 +268,23 @@ export default function EventsPage() {
         </div>
 
         {/* Events Grid */}
-        {filteredEvents.length > 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <EmptyState
+            icon={X}
+            title="Failed to load events"
+            description="There was an error loading events. Please try again later."
+            action={{
+              label: 'Retry',
+              onClick: () => window.location.reload(),
+            }}
+          />
+        ) : events.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredEvents.map((event, index) => (
+            {events.map((event: any, index: number) => (
               <EventCard key={event.id} event={event} index={index} />
             ))}
           </div>
