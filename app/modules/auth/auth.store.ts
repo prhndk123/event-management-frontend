@@ -16,29 +16,28 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   hasHydrated: boolean;
   login: (payload: LoginSchema) => Promise<void>;
   register: (payload: RegisterSchema) => Promise<void>;
-  logout: () => void;
-  setAuth: (data: { user: User; token: string }) => void;
+  logout: () => Promise<void>;
+  setUser: (user: User) => void;
+  updateUser: (userData: Partial<User>) => void;
+  clearAuth: () => void;
   setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
-      token: null,
       isAuthenticated: false,
       hasHydrated: false,
 
       // LOGIN
       async login(payload) {
         const data = await authService.login(payload);
-
-        // Use setAuth logic or handle manually if needed, but for now match the types
+        // Token is now stored in httpOnly cookie by backend
         set({
           user: {
             id: data.id,
@@ -50,52 +49,63 @@ export const useAuthStore = create<AuthState>()(
             referralCode: data.referralCode,
             phone: data.phone,
           },
-          token: data.accessToken, // Assuming API returns accessToken here too if we keep this action
           isAuthenticated: true,
         });
-        localStorage.setItem("accessToken", data.accessToken);
       },
 
       // REGISTER
       async register(payload) {
         const data = await authService.register(payload);
-
+        // Token is now stored in httpOnly cookie by backend
         set({
           user: data.user,
-          token: data.token,
           isAuthenticated: true,
         });
       },
 
-      logout() {
-        localStorage.removeItem("accessToken");
+      // LOGOUT
+      async logout() {
+        try {
+          await authService.logout();
+        } catch (error) {
+          // Continue with local logout even if API call fails
+          console.error("Logout API error:", error);
+        }
+        set({ user: null, isAuthenticated: false });
+        window.location.href = "/";
+      },
+
+      // Set user data (untuk login/register)
+      setUser(user: User) {
         set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
+          user,
+          isAuthenticated: true,
         });
       },
 
-      setAuth(data: { user: User; token: string }) {
-        localStorage.setItem("accessToken", data.token);
-        set({
-          user: data.user,
-          token: data.token,
-          isAuthenticated: true,
-        });
+      // Update partial user data (untuk profile update)
+      updateUser(userData: Partial<User>) {
+        const currentUser = get().user;
+        if (currentUser) {
+          set({
+            user: { ...currentUser, ...userData },
+          });
+        }
+      },
+
+      // Clear auth state
+      clearAuth() {
+        set({ user: null, isAuthenticated: false });
       },
 
       setHasHydrated: (state) => {
-        set({
-          hasHydrated: state,
-        });
+        set({ hasHydrated: state });
       },
     }),
     {
       name: "auth-storage",
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {

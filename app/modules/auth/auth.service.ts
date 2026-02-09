@@ -32,4 +32,8 @@ export const authService = {
     });
     return data;
   },
+  async logout() {
+    const { data } = await axiosInstance.post("/auth/logout");
+    return data;
+  },
 };
