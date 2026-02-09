@@ -153,7 +153,7 @@ export function Navbar() {
                     ) : (
                       <>
                         <DropdownMenuItem asChild>
-                          <Link to="/profile" className="cursor-pointer">
+                          <Link to="/settings" className="cursor-pointer">
                             <User className="h-4 w-4 mr-2" />
                             Profile
                           </Link>
