@@ -1,16 +1,28 @@
 import { Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, CreditCard } from 'lucide-react';
+import { Ticket, Calendar, Loader2 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { StatusBadge } from '~/components/shared/status-badge';
 import { EmptyState } from '~/components/shared/empty-state';
-import { mockTransactions } from '~/data/mock-data';
 import { formatCurrency, formatDate } from '~/types';
+import { useQuery } from '@tanstack/react-query';
+import * as transactionService from '~/services/transaction.service';
 
 export default function TransactionsPage() {
-  const transactions = mockTransactions;
+  const { data: transactions, isLoading } = useQuery({
+    queryKey: ['my-transactions'],
+    queryFn: () => transactionService.getMyTransactions(),
+  });
 
-  if (transactions.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!transactions || transactions.length === 0) {
     return (
       <div className="min-h-screen bg-muted/30 py-12">
         <div className="container-wide">
@@ -18,7 +30,7 @@ export default function TransactionsPage() {
             icon={Ticket}
             title="No transactions yet"
             description="Your ticket purchases will appear here."
-            action={{ label: 'Browse Events', onClick: () => {} }}
+            action={{ label: 'Browse Events', onClick: () => { } }}
           />
         </div>
       </div>
@@ -30,7 +42,7 @@ export default function TransactionsPage() {
       <div className="container-wide">
         <h1 className="text-2xl font-bold text-foreground mb-6">My Tickets</h1>
         <div className="space-y-4">
-          {transactions.map((txn, index) => (
+          {transactions.map((txn: any, index: number) => (
             <motion.div
               key={txn.id}
               initial={{ opacity: 0, y: 20 }}

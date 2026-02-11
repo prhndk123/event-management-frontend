@@ -1,4 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -12,6 +13,7 @@ import {
   Tag,
   Star,
   User,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -26,28 +28,48 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { RatingStars } from "~/components/shared/rating-stars";
-import { useEventStore } from "~/store/event-store";
 import { useCartStore } from "~/store/cart-store";
-import { formatCurrency, formatDate, formatTime, TicketType } from "~/types";
-import { mockReviews } from "~/data/mock-data";
+import { formatCurrency, formatDate, formatTime, TicketType, Event } from "~/types";
 import { toast } from "sonner";
 import { useAuthStore } from "~/modules/auth/auth.store";
+import { getEventById, getEventReviews } from "~/services/event.service";
 
 export default function EventDetailPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  const getEventById = useEventStore((state) => state.getEventById);
   const { addItem } = useCartStore();
 
-  const event = getEventById(eventId || "");
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  if (!event) {
+  // Fetch Event Detail
+  const { data: event, isLoading: isEventLoading, error: eventError } = useQuery<Event>({
+    queryKey: ["event", eventId],
+    queryFn: () => getEventById(eventId!),
+    enabled: !!eventId,
+  });
+
+  // Fetch Reviews
+  const { data: eventReviews = [] } = useQuery<any[]>({
+    queryKey: ["reviews", eventId],
+    queryFn: () => getEventReviews(Number(eventId)),
+    enabled: !!eventId && !isNaN(Number(eventId)),
+  });
+
+  if (isEventLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (eventError || !event) {
     return (
       <div className="container-wide py-20 text-center">
         <h1 className="text-2xl font-bold mb-4">Event not found</h1>
+        <p className="text-muted-foreground mb-6">The event you are looking for does not exist or has been removed.</p>
         <Button asChild>
           <Link to="/events">Browse Events</Link>
         </Button>
@@ -55,7 +77,6 @@ export default function EventDetailPage() {
     );
   }
 
-  const eventReviews = mockReviews.filter((r) => r.eventId === event.id);
   const isFree = event.price === 0;
 
   const handleBuyTicket = () => {
@@ -304,7 +325,7 @@ export default function EventDetailPage() {
                       {event.vouchers[0].discountType === "percentage"
                         ? `${event.vouchers[0].discountAmount}% off`
                         : formatCurrency(event.vouchers[0].discountAmount) +
-                          " off"}
+                        " off"}
                     </p>
                   </div>
                 )}

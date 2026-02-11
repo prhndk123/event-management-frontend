@@ -13,21 +13,23 @@ export interface EventFilters {
     endDate?: string;
 }
 
+export interface CreateTicketTypeData {
+    name: string;
+    description: string;
+    price: number;
+    totalSeat: number;
+}
+
 export interface CreateEventData {
     title: string;
     description: string;
-    image?: string;
     category: string;
     location: string;
     venue: string;
     startDate: string;
     endDate: string;
-    ticketTypes: {
-        name: string;
-        description: string;
-        price: number;
-        totalSeat: number;
-    }[];
+    image?: string;
+    ticketTypes: CreateTicketTypeData[];
 }
 
 export interface CreateVoucherData {
@@ -68,6 +70,14 @@ export const getEventById = async (id: number | string) => {
  */
 export const createEvent = async (data: CreateEventData) => {
     const response = await api.post('/events', data);
+    return response.data;
+};
+
+/**
+ * Get events for the current organizer
+ */
+export const getOrganizerEvents = async () => {
+    const response = await api.get('/events/me');
     return response.data;
 };
 
