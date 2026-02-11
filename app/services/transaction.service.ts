@@ -29,6 +29,14 @@ export const getMyTransactions = async () => {
 };
 
 /**
+ * Get transactions for the current organizer (Organizer only)
+ */
+export const getOrganizerTransactions = async () => {
+    const response = await api.get('/organizer/transactions');
+    return response.data;
+};
+
+/**
  * Get transaction by ID
  */
 export const getTransactionById = async (transactionId: number) => {

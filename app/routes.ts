@@ -41,6 +41,7 @@ export default [
     ...prefix("/dashboard", [
       index("routes/dashboard/dashboard-page.tsx"),
       route("events", "routes/dashboard/events-page.tsx"),
+      route("events/create", "routes/dashboard/create-event-page.tsx"),
       route("transactions", "routes/dashboard/transactions-page.tsx"),
       route("attendees", "routes/dashboard/attendees-page.tsx"),
       route("vouchers", "routes/dashboard/vouchers-page.tsx"),

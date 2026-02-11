@@ -91,6 +91,12 @@ export interface Transaction {
 }
 
 export type TransactionStatus =
+  | "WAITING_PAYMENT"
+  | "WAITING_CONFIRMATION"
+  | "DONE"
+  | "REJECTED"
+  | "EXPIRED"
+  | "CANCELLED"
   | "waiting_payment"
   | "waiting_confirmation"
   | "done"
@@ -191,7 +197,8 @@ export function formatDateTime(dateString: string): string {
 }
 
 export function getTransactionStatusLabel(status: TransactionStatus): string {
-  const labels: Record<TransactionStatus, string> = {
+  const normStatus = status.toLowerCase();
+  const labels: Record<string, string> = {
     waiting_payment: "Waiting for Payment",
     waiting_confirmation: "Waiting for Confirmation",
     done: "Completed",
@@ -199,11 +206,12 @@ export function getTransactionStatusLabel(status: TransactionStatus): string {
     expired: "Expired",
     cancelled: "Cancelled",
   };
-  return labels[status];
+  return labels[normStatus] || status;
 }
 
 export function getTransactionStatusColor(status: TransactionStatus): string {
-  const colors: Record<TransactionStatus, string> = {
+  const normStatus = status.toLowerCase();
+  const colors: Record<string, string> = {
     waiting_payment: "warning",
     waiting_confirmation: "info",
     done: "success",
@@ -211,5 +219,5 @@ export function getTransactionStatusColor(status: TransactionStatus): string {
     expired: "muted",
     cancelled: "muted",
   };
-  return colors[status];
+  return colors[normStatus] || "muted";
 }

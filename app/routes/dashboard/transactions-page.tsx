@@ -1,4 +1,4 @@
-import { MoreHorizontal, Search, Download, Filter, Eye, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, Search, Download, Filter, Eye, FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
@@ -11,60 +11,13 @@ import { cn } from '~/lib/utils';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { toast } from 'sonner';
-
-// Temporary Mock Data with Payment Proof
-const INITIAL_TRANSACTIONS = [
-  {
-    id: 'TRX-1001',
-    user: {
-      name: 'John Doe',
-      email: 'john@example.com',
-      avatar: 'https://github.com/shadcn.png'
-    },
-    event: 'Neon Music Festival 2024',
-    ticketType: 'VIP Pass',
-    amount: 3000000,
-    status: 'done',
-    date: '2024-04-10T14:30:00',
-    paymentProof: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80',
-    paymentMethod: 'Bank Transfer'
-  },
-  {
-    id: 'TRX-1002',
-    user: {
-      name: 'Alice Smith',
-      email: 'alice@example.com',
-      avatar: ''
-    },
-    event: 'Tech Startup Summit',
-    ticketType: 'Early Bird',
-    amount: 1500000,
-    status: 'waiting_confirmation',
-    date: '2024-04-11T09:15:00',
-    paymentProof: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80',
-    paymentMethod: 'E-Wallet'
-  },
-  {
-    id: 'TRX-1003',
-    user: {
-      name: 'Bob Johnson',
-      email: 'bob@example.com',
-      avatar: ''
-    },
-    event: 'Yoga & Wellness Retreat',
-    ticketType: 'Regular',
-    amount: 500000,
-    status: 'cancelled',
-    date: '2024-04-12T11:20:00',
-    paymentProof: null,
-    paymentMethod: 'Bank Transfer'
-  }
-];
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as transactionService from '~/services/transaction.service';
 
 // Helper to map status colors
 function getStatusBadgeClass(statusStr: string) {
   const color = getTransactionStatusColor(statusStr as any);
-  switch(color) {
+  switch (color) {
     case 'success': return "bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200";
     case 'warning': return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200";
     case 'info': return "bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200";
@@ -74,45 +27,68 @@ function getStatusBadgeClass(statusStr: string) {
 }
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
-  const [selectedTrx, setSelectedTrx] = useState<typeof INITIAL_TRANSACTIONS[0] | null>(null);
+  const queryClient = useQueryClient();
+  const [selectedTrx, setSelectedTrx] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const handleViewDetails = (trx: typeof INITIAL_TRANSACTIONS[0]) => {
+  const { data: transactions, isLoading } = useQuery({
+    queryKey: ['organizer-transactions'],
+    queryFn: () => transactionService.getOrganizerTransactions(),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (id: number) => transactionService.confirmTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer-transactions'] });
+      toast.success("Payment approved successfully.");
+      setDetailOpen(false);
+    },
+    onError: () => toast.error("Failed to approve payment."),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: number) => transactionService.rejectTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer-transactions'] });
+      toast.error("Payment rejected.");
+      setDetailOpen(false);
+    },
+    onError: () => toast.error("Failed to reject payment."),
+  });
+
+  const handleViewDetails = (trx: any) => {
     setSelectedTrx(trx);
     setDetailOpen(true);
   };
 
   const handleDownloadInvoice = (trxId: string) => {
-    // In a real app, this would generate a PDF or trigger a download from the backend
     toast.success(`Downloading invoice for transaction ${trxId}...`);
-    setTimeout(() => {
-        toast.info("Invoice downloaded successfully.");
-    }, 1500);
-  };
-
-  const updateStatus = (id: string, newStatus: string) => {
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
-    
-    // Also update selectedTrx if it's the one currently open
-    if (selectedTrx && selectedTrx.id === id) {
-        setSelectedTrx(prev => prev ? { ...prev, status: newStatus } : null);
-    }
   };
 
   const handleApprove = () => {
     if (!selectedTrx) return;
-    updateStatus(selectedTrx.id, 'done');
-    toast.success("Payment approved successfully.");
-    setDetailOpen(false);
+    approveMutation.mutate(selectedTrx.id);
   };
 
   const handleReject = () => {
     if (!selectedTrx) return;
-    updateStatus(selectedTrx.id, 'rejected');
-    toast.error("Payment rejected.");
-    setDetailOpen(false);
+    rejectMutation.mutate(selectedTrx.id);
   };
+
+  const filteredTransactions = transactions?.filter((trx: any) =>
+    trx.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    trx.event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    trx.id.toString().includes(searchQuery)
+  );
+
+  if (isLoading) {
+    return (
+      <div className="h-[400px] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -148,6 +124,8 @@ export default function TransactionsPage() {
                 type="search"
                 placeholder="Search transactions..."
                 className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
@@ -166,10 +144,10 @@ export default function TransactionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((trx) => (
+                {filteredTransactions?.map((trx: any) => (
                   <TableRow key={trx.id}>
                     <TableCell className="font-mono text-xs font-medium">
-                      {trx.id}
+                      #{trx.id}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -185,19 +163,19 @@ export default function TransactionsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium text-sm">{trx.event}</span>
-                        <span className="text-xs text-muted-foreground">{trx.ticketType}</span>
+                        <span className="font-medium text-sm">{trx.event.title}</span>
+                        <span className="text-xs text-muted-foreground">{trx.ticketType.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(trx.amount)}
+                      {formatCurrency(trx.finalPrice)}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime(trx.date)}
+                      {formatDateTime(trx.createdAt)}
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={cn("border-0", getStatusBadgeClass(trx.status))}
                       >
                         {getTransactionStatusLabel(trx.status as any)}
@@ -220,18 +198,12 @@ export default function TransactionsPage() {
                             <FileText className="mr-2 h-4 w-4" /> Download Invoice
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {trx.status === 'waiting_confirmation' && (
+                          {trx.status.toLowerCase() === 'waiting_confirmation' && (
                             <>
-                              <DropdownMenuItem className="text-green-600" onClick={() => {
-                                updateStatus(trx.id, 'done');
-                                toast.success("Transaction approved!");
-                              }}>
+                              <DropdownMenuItem className="text-green-600" onClick={() => approveMutation.mutate(trx.id)}>
                                 <CheckCircle className="mr-2 h-4 w-4" /> Approve
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600" onClick={() => {
-                                updateStatus(trx.id, 'rejected');
-                                toast.error("Transaction rejected.");
-                              }}>
+                              <DropdownMenuItem className="text-red-600" onClick={() => rejectMutation.mutate(trx.id)}>
                                 <XCircle className="mr-2 h-4 w-4" /> Reject
                               </DropdownMenuItem>
                             </>
@@ -262,7 +234,7 @@ export default function TransactionsPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Transaction ID</h3>
-                  <p className="font-mono">{selectedTrx.id}</p>
+                  <p className="font-mono">#{selectedTrx.id}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Customer</h3>
@@ -277,18 +249,18 @@ export default function TransactionsPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Event Details</h3>
-                  <p className="font-medium">{selectedTrx.event}</p>
-                  <p className="text-sm text-muted-foreground">{selectedTrx.ticketType}</p>
+                  <p className="font-medium">{selectedTrx.event.title}</p>
+                  <p className="text-sm text-muted-foreground">{selectedTrx.ticketType.name} × {selectedTrx.ticketQty}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-1">Payment</h3>
                   <div className="flex justify-between items-center py-1">
-                    <span>Method</span>
-                    <span className="font-medium">{selectedTrx.paymentMethod}</span>
+                    <span>Points Used</span>
+                    <span className="font-medium text-success">-{formatCurrency(selectedTrx.pointsUsed)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span>Amount</span>
-                    <span className="text-lg font-bold">{formatCurrency(selectedTrx.amount)}</span>
+                  <div className="flex justify-between items-center py-1 border-t mt-1 pt-1">
+                    <span>Total Amount</span>
+                    <span className="text-lg font-bold">{formatCurrency(selectedTrx.finalPrice)}</span>
                   </div>
                   <div className="flex justify-between items-center py-1">
                     <span>Status</span>
@@ -300,20 +272,21 @@ export default function TransactionsPage() {
               </div>
 
               <div className="space-y-2">
-                 <h3 className="text-sm font-medium text-muted-foreground">Payment Proof</h3>
-                 <div className="relative aspect-[3/4] w-full bg-muted rounded-lg overflow-hidden border">
-                    {selectedTrx.paymentProof ? (
-                        <img 
-                            src={selectedTrx.paymentProof} 
-                            alt="Payment Proof" 
-                            className="object-cover w-full h-full"
-                        />
-                    ) : (
-                        <div className="flex items-center justify-center w-full h-full text-muted-foreground">
-                            No Proof Uploaded
-                        </div>
-                    )}
-                 </div>
+                <h3 className="text-sm font-medium text-muted-foreground">Payment Proof</h3>
+                <div className="relative aspect-[3/4] w-full bg-muted rounded-lg overflow-hidden border">
+                  {selectedTrx.paymentProof ? (
+                    <img
+                      src={selectedTrx.paymentProof}
+                      alt="Payment Proof"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full text-muted-foreground flex-col gap-2">
+                      <FileText className="h-10 w-10 opacity-20" />
+                      No Proof Uploaded
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -322,20 +295,29 @@ export default function TransactionsPage() {
             <Button variant="outline" onClick={() => handleDownloadInvoice(selectedTrx?.id || "")}>
               <Download className="mr-2 h-4 w-4" /> Download Invoice
             </Button>
-            
+
             <div className="flex-1"></div>
 
-            {selectedTrx?.status === 'waiting_confirmation' ? (
-                <>
-                    <Button variant="destructive" onClick={handleReject}>
-                        Reject Payment
-                    </Button>
-                    <Button variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApprove}>
-                        Approve Payment
-                    </Button>
-                </>
+            {selectedTrx?.status.toLowerCase() === 'waiting_confirmation' ? (
+              <>
+                <Button
+                  variant="destructive"
+                  onClick={handleReject}
+                  disabled={rejectMutation.isPending || approveMutation.isPending}
+                >
+                  {rejectMutation.isPending ? "Rejecting..." : "Reject Payment"}
+                </Button>
+                <Button
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleApprove}
+                  disabled={rejectMutation.isPending || approveMutation.isPending}
+                >
+                  {approveMutation.isPending ? "Approving..." : "Approve Payment"}
+                </Button>
+              </>
             ) : (
-                <Button onClick={() => setDetailOpen(false)}>Close</Button>
+              <Button onClick={() => setDetailOpen(false)}>Close</Button>
             )}
           </DialogFooter>
         </DialogContent>

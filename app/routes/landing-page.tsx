@@ -1,13 +1,27 @@
 import { Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ArrowRight, Calendar, Shield, Ticket, TrendingUp, Users, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Calendar,
+  Shield,
+  Ticket,
+  TrendingUp,
+  Users,
+  Zap,
+  Loader2
+} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '~/components/ui/button';
 import { EventCard } from '~/components/events/event-card';
-import { useEventStore } from '~/store/event-store';
+import * as eventService from '~/services/event.service';
 
 export default function LandingPage() {
-  const events = useEventStore((state) => state.events);
-  const featuredEvents = events.filter(e => e.status === 'published').slice(0, 6);
+  const { data, isLoading } = useQuery({
+    queryKey: ['featured-events'],
+    queryFn: () => eventService.getEvents({ take: 6 }),
+  });
+
+  const featuredEvents = data?.data || [];
 
   const features = [
     {
@@ -59,7 +73,7 @@ export default function LandingPage() {
                 <span className="text-gradient">Inspire You</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8 max-w-lg">
-                From music festivals to tech conferences, find your next unforgettable experience. 
+                From music festivals to tech conferences, find your next unforgettable experience.
                 Join thousands of event-goers and create memories that last.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -150,9 +164,19 @@ export default function LandingPage() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredEvents.map((event, index) => (
-              <EventCard key={event.id} event={event} index={index} />
-            ))}
+            {isLoading ? (
+              <div className="col-span-full flex justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : featuredEvents.length > 0 ? (
+              featuredEvents.map((event: any, index: number) => (
+                <EventCard key={event.id} event={event} index={index} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-20">
+                <p className="text-muted-foreground text-lg">No upcoming events found.</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -200,11 +224,11 @@ export default function LandingPage() {
               Ready to Create Your Event?
             </h2>
             <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto mb-8">
-              Join thousands of organizers who trust Eventku to manage their events. 
+              Join thousands of organizers who trust Eventku to manage their events.
               Start selling tickets in minutes.
             </p>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               variant="secondary"
               className="text-lg px-8"
               asChild
