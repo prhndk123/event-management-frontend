@@ -64,6 +64,6 @@ export const rejectTransaction = async (transactionId: number) => {
  * Cancel transaction (Customer only)
  */
 export const cancelTransaction = async (transactionId: number) => {
-    const response = await api.delete(`/transactions/${transactionId}`);
+    const response = await api.put(`/transactions/${transactionId}/cancel`);
     return response.data;
 };

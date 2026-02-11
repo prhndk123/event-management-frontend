@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { motion } from 'framer-motion';
-import { 
-  Upload, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Upload,
+  CheckCircle,
+  XCircle,
+  Clock,
   AlertCircle,
   ChevronLeft,
-  FileImage
+  FileImage,
+  Loader2
 } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -18,36 +19,66 @@ import { CountdownTimer } from '~/components/shared/countdown-timer';
 import { StatusBadge } from '~/components/shared/status-badge';
 import { formatCurrency, formatDateTime, TransactionStatus } from '~/types';
 import { toast } from 'sonner';
+import { getTransactionById, uploadPaymentProof } from '~/services/transaction.service';
 
-// Mock transaction data
-const mockTransaction = {
-  id: 'txn-new',
-  status: 'waiting_payment' as TransactionStatus,
-  eventTitle: 'Jakarta Music Festival 2025',
-  ticketType: 'VIP',
-  quantity: 2,
-  subtotal: 3000000,
-  voucherDiscount: 750000,
-  couponDiscount: 100000,
-  pointsUsed: 20000,
-  finalPrice: 2130000,
-  createdAt: new Date().toISOString(),
-  expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
-  bankAccount: {
-    bank: 'Bank Central Asia (BCA)',
-    accountNumber: '1234567890',
-    accountName: 'PT Eventku Indonesia',
-  },
-};
+interface Transaction {
+  id: number;
+  status: string;
+  event: {
+    title: string;
+  };
+  ticketType: {
+    name: string;
+    price: number;
+  };
+  ticketQty: number;
+  totalPrice: number;
+  voucher?: {
+    discountType: string;
+    discountAmount: number;
+  };
+  coupon?: {
+    discountAmount: number;
+  };
+  pointsUsed: number;
+  finalPrice: number;
+  createdAt: string;
+  expiredAt: string;
+}
 
 export default function PaymentPage() {
   const { transactionId } = useParams();
   const navigate = useNavigate();
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>(
-    mockTransaction.status
-  );
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>('waiting_payment');
+
+  // Fetch transaction data on mount
+  useEffect(() => {
+    const fetchTransaction = async () => {
+      if (!transactionId) {
+        toast.error('Transaction ID not found');
+        navigate('/transactions');
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const data = await getTransactionById(Number(transactionId));
+        setTransaction(data);
+        setTransactionStatus(data.status.toLowerCase() as TransactionStatus);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Failed to load transaction');
+        navigate('/transactions');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransaction();
+  }, [transactionId, navigate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,16 +92,36 @@ export default function PaymentPage() {
   };
 
   const handleSubmitProof = async () => {
-    if (!uploadedFile) {
+    if (!uploadedFile || !transactionId) {
       toast.error('Please upload payment proof');
       return;
     }
 
-    setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setTransactionStatus('waiting_confirmation');
-    toast.success('Payment proof uploaded! Waiting for confirmation.');
-    setIsSubmitting(false);
+    try {
+      setIsSubmitting(true);
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(uploadedFile);
+      reader.onload = async () => {
+        try {
+          const base64String = reader.result as string;
+          await uploadPaymentProof(Number(transactionId), { paymentProof: base64String });
+          setTransactionStatus('waiting_confirmation');
+          toast.success('Payment proof uploaded! Waiting for confirmation.');
+        } catch (error: any) {
+          toast.error(error.response?.data?.message || 'Failed to upload payment proof');
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read file');
+        setIsSubmitting(false);
+      };
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to upload payment proof');
+      setIsSubmitting(false);
+    }
   };
 
   const handleExpire = () => {
@@ -93,6 +144,45 @@ export default function PaymentPage() {
       default:
         return null;
     }
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-muted/30 py-8 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading transaction...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if transaction not found
+  if (!transaction) {
+    return (
+      <div className="min-h-screen bg-muted/30 py-8 flex items-center justify-center">
+        <div className="text-center">
+          <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <p className="text-muted-foreground">Transaction not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate discounts
+  const voucherDiscount = transaction.voucher
+    ? transaction.voucher.discountType === 'PERCENTAGE'
+      ? Math.floor(transaction.totalPrice * (transaction.voucher.discountAmount / 100))
+      : transaction.voucher.discountAmount
+    : 0;
+  const couponDiscount = transaction.coupon?.discountAmount || 0;
+
+  // Mock bank account (should come from backend in production)
+  const bankAccount = {
+    bank: 'Bank Central Asia (BCA)',
+    accountNumber: '1234567890',
+    accountName: 'PT Eventku Indonesia',
   };
 
   return (
@@ -122,14 +212,14 @@ export default function PaymentPage() {
                 {getStatusIcon()}
               </div>
               <StatusBadge status={transactionStatus} className="mb-2" />
-              
+
               {transactionStatus === 'waiting_payment' && (
                 <>
                   <p className="text-muted-foreground mb-4">
                     Please complete your payment within:
                   </p>
                   <CountdownTimer
-                    expiresAt={mockTransaction.expiresAt}
+                    expiresAt={transaction.expiredAt}
                     onExpire={handleExpire}
                     className="justify-center"
                   />
@@ -161,26 +251,26 @@ export default function PaymentPage() {
                 <h2 className="text-lg font-semibold text-foreground mb-4">
                   Bank Transfer Details
                 </h2>
-                
+
                 <div className="space-y-4">
                   <div className="p-4 rounded-lg bg-muted/50">
                     <p className="text-sm text-muted-foreground mb-1">Bank</p>
-                    <p className="font-medium">{mockTransaction.bankAccount.bank}</p>
+                    <p className="font-medium">{bankAccount.bank}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50">
                     <p className="text-sm text-muted-foreground mb-1">Account Number</p>
                     <p className="font-mono font-bold text-lg">
-                      {mockTransaction.bankAccount.accountNumber}
+                      {bankAccount.accountNumber}
                     </p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50">
                     <p className="text-sm text-muted-foreground mb-1">Account Name</p>
-                    <p className="font-medium">{mockTransaction.bankAccount.accountName}</p>
+                    <p className="font-medium">{bankAccount.accountName}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                     <p className="text-sm text-muted-foreground mb-1">Transfer Amount</p>
                     <p className="font-bold text-2xl text-primary">
-                      {formatCurrency(mockTransaction.finalPrice)}
+                      {formatCurrency(transaction.finalPrice)}
                     </p>
                   </div>
                 </div>
@@ -254,12 +344,12 @@ export default function PaymentPage() {
               </h2>
 
               <div className="mb-4">
-                <h3 className="font-medium text-foreground">{mockTransaction.eventTitle}</h3>
+                <h3 className="font-medium text-foreground">{transaction.event.title}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {mockTransaction.ticketType} × {mockTransaction.quantity}
+                  {transaction.ticketType.name} × {transaction.ticketQty}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Order placed: {formatDateTime(mockTransaction.createdAt)}
+                  Order placed: {formatDateTime(transaction.createdAt)}
                 </p>
               </div>
 
@@ -268,24 +358,24 @@ export default function PaymentPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatCurrency(mockTransaction.subtotal)}</span>
+                  <span>{formatCurrency(transaction.totalPrice)}</span>
                 </div>
-                {mockTransaction.voucherDiscount > 0 && (
+                {voucherDiscount > 0 && (
                   <div className="flex justify-between text-success">
                     <span>Voucher Discount</span>
-                    <span>-{formatCurrency(mockTransaction.voucherDiscount)}</span>
+                    <span>-{formatCurrency(voucherDiscount)}</span>
                   </div>
                 )}
-                {mockTransaction.couponDiscount > 0 && (
+                {couponDiscount > 0 && (
                   <div className="flex justify-between text-success">
                     <span>Coupon Discount</span>
-                    <span>-{formatCurrency(mockTransaction.couponDiscount)}</span>
+                    <span>-{formatCurrency(couponDiscount)}</span>
                   </div>
                 )}
-                {mockTransaction.pointsUsed > 0 && (
+                {transaction.pointsUsed > 0 && (
                   <div className="flex justify-between text-success">
                     <span>Points Used</span>
-                    <span>-{formatCurrency(mockTransaction.pointsUsed)}</span>
+                    <span>-{formatCurrency(transaction.pointsUsed)}</span>
                   </div>
                 )}
               </div>
@@ -294,7 +384,7 @@ export default function PaymentPage() {
 
               <div className="flex justify-between font-semibold text-lg">
                 <span>Total</span>
-                <span className="text-primary">{formatCurrency(mockTransaction.finalPrice)}</span>
+                <span className="text-primary">{formatCurrency(transaction.finalPrice)}</span>
               </div>
             </div>
           </motion.div>

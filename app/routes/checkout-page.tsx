@@ -20,6 +20,7 @@ import { useCartStore } from "~/store/cart-store";
 import { useAuthStore } from "~/modules/auth/auth.store";
 import { formatCurrency, formatDate } from "~/types";
 import { toast } from "sonner";
+import { createTransaction } from "~/services/transaction.service";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -90,15 +91,45 @@ export default function CheckoutPage() {
   };
 
   const handleCheckout = async () => {
-    setIsProcessing(true);
+    if (!user) {
+      toast.error("Please login to continue");
+      navigate("/login");
+      return;
+    }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
 
-    toast.success("Order placed successfully!");
-    clearCart();
-    navigate("/payment/txn-new");
-    setIsProcessing(false);
+    // Currently only support single event checkout
+    const firstItem = items[0];
+
+    try {
+      setIsProcessing(true);
+
+      // Create transaction via API
+      const transactionData = {
+        ticketTypeId: Number(firstItem.ticketType.id),
+        quantity: firstItem.quantity,
+        voucherCode: appliedVoucher?.code,
+        couponCode: appliedCouponCode || undefined,
+        pointsToUse: pointsToUse,
+      };
+
+      const transaction = await createTransaction(Number(firstItem.event.id), transactionData);
+
+      toast.success("Order placed successfully!");
+      clearCart();
+
+      // Redirect to payment page with real transaction ID
+      navigate(`/payment/${transaction.id}`);
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast.error(error.response?.data?.message || "Failed to create transaction. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (items.length === 0) {
@@ -238,7 +269,7 @@ export default function CheckoutPage() {
                       {appliedVoucher.discountType === "percentage"
                         ? `${appliedVoucher.discountAmount}% off`
                         : formatCurrency(appliedVoucher.discountAmount) +
-                          " off"}
+                        " off"}
                     </p>
                   </div>
                   <Button
