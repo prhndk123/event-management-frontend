@@ -40,7 +40,7 @@ import { formatDate } from "~/types";
 import { useMutation } from "@tanstack/react-query";
 
 export default function AccountSettingsPage() {
-  const { user, hasHydrated, setAuth } = useAuthStore();
+  const { user, hasHydrated, updateUser } = useAuthStore();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -99,13 +99,7 @@ export default function AccountSettingsPage() {
     onSuccess: (data) => {
       // Update auth store with new user data from backend response
       if (user) {
-        setAuth({
-          user: {
-            ...user,
-            ...data, // Use the actual updated user data from backend
-          },
-          token: localStorage.getItem("accessToken") ?? "",
-        });
+        updateUser(data);
       }
       // Reset states
       setAvatarFile(null);

@@ -16,7 +16,7 @@ import { authService } from "~/modules/auth/auth.service";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { setAuth } = useAuthStore();
+  const { setUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -37,18 +37,16 @@ export default function LoginPage() {
       return await authService.login(data);
     },
     onSuccess: (data) => {
-      setAuth({
-        user: {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          avatar: data.avatar,
-          role: data.role,
-          point: data.point,
-          referralCode: data.referralCode,
-          phone: data.phone,
-        },
-        token: data.accessToken,
+      // Token is now stored in httpOnly cookie by backend
+      setUser({
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        avatar: data.avatar,
+        role: data.role,
+        point: data.point,
+        referralCode: data.referralCode,
+        phone: data.phone,
       });
       toast.success("Welcome back!");
       navigate("/");
