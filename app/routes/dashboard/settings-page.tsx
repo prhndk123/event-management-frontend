@@ -1,11 +1,20 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Eye, EyeOff, Building2, Loader2 } from "lucide-react";
+import {
+  Camera,
+  Eye,
+  EyeOff,
+  Building2,
+  Loader2,
+  Check,
+  Copy,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -42,6 +51,7 @@ import {
   settingsService,
   type UpdateProfilePayload,
 } from "~/modules/settings/settings.service";
+import { formatDate } from "~/types";
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuthStore();
@@ -49,6 +59,7 @@ export default function SettingsPage() {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [copied, setCopied] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -235,6 +246,15 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCopyReferral = () => {
+    if (user?.referralCode) {
+      navigator.clipboard.writeText(user.referralCode);
+      setCopied(true);
+      toast.success("Referral code copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -296,7 +316,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="profile" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isOrganizer && (
             <TabsTrigger value="organizer">Organizer</TabsTrigger>
@@ -304,33 +324,38 @@ export default function SettingsPage() {
         </TabsList>
 
         {/* Profile Tab */}
-        <TabsContent value="profile" className="space-y-4">
+        <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
+              <CardTitle>Edit Profile</CardTitle>
               <CardDescription>
-                Update your public profile information.
+                Update your personal information.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleProfileSubmit(onProfileFormSubmit)}>
               <CardContent className="space-y-6">
-                <div className="flex items-center gap-4">
+                {/* Avatar Upload */}
+                <div className="flex items-center gap-6">
                   <div className="relative">
-                    <Avatar className="h-20 w-20">
+                    <Avatar className="h-24 w-24">
                       <AvatarImage
                         src={avatarPreview ?? user?.avatar ?? undefined}
+                        onLoadingStatusChange={(status) => {}}
                       />
-                      <AvatarFallback>
-                        {user?.name?.charAt(0) ?? "U"}
+                      {/* Only show fallback initials if there is no image source OR if image failed to load */}
+                      <AvatarFallback className="text-2xl">
+                        {!(avatarPreview ?? user?.avatar)
+                          ? (user?.name?.charAt(0) ?? "U")
+                          : null}
                       </AvatarFallback>
                     </Avatar>
                     <label
-                      htmlFor="avatar-upload-dashboard"
-                      className="absolute bottom-0 right-0 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
+                      htmlFor="avatar-upload"
+                      className="absolute bottom-0 right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
                     >
-                      <Camera className="h-3.5 w-3.5" />
+                      <Camera className="h-4 w-4" />
                       <input
-                        id="avatar-upload-dashboard"
+                        id="avatar-upload"
                         type="file"
                         accept="image/*"
                         className="hidden"
@@ -338,14 +363,17 @@ export default function SettingsPage() {
                       />
                     </label>
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <p className="text-sm font-medium">Profile Picture</p>
                     <p className="text-xs text-muted-foreground">
                       JPG, PNG or GIF. Max 2MB.
                     </p>
                   </div>
                 </div>
+
                 <Separator />
+
+                {/* Form Fields */}
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
@@ -362,13 +390,20 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" {...registerProfile("email")} disabled />
-                    <p className="text-xs text-muted-foreground">
-                      Email cannot be changed directly.
-                    </p>
+                    <Input
+                      id="email"
+                      type="email"
+                      {...registerProfile("email")}
+                      placeholder="Enter your email"
+                    />
+                    {profileErrors.email && (
+                      <p className="text-sm text-destructive">
+                        {profileErrors.email.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone">Phone Number (Optional)</Label>
                     <Input
                       id="phone"
                       {...registerProfile("phone")}
@@ -377,17 +412,85 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button type="submit" disabled={!profileDirty && !avatarFile}>
+              <CardFooter className="mt-6">
+                <Button
+                  type="submit"
+                  disabled={!profileDirty && !avatarPreview}
+                >
                   Save Changes
                 </Button>
               </CardFooter>
             </form>
           </Card>
+          {/* Account Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>
+                Your account details and status.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Role */}
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Role</p>
+                  <Badge variant="outline" className="capitalize">
+                    {user?.role?.toLowerCase() ?? "Customer"}
+                  </Badge>
+                </div>
+
+                {/* Referral Code */}
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Referral Code</p>
+                  <div className="flex items-center gap-2">
+                    <code className="rounded bg-muted px-2 py-1 text-sm font-mono">
+                      {user?.referralCode ?? "N/A"}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={handleCopyReferral}
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Created Date */}
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Member Since</p>
+                  <p className="text-sm font-medium">
+                    {formatDate(new Date().toISOString())}
+                  </p>
+                </div>
+              </div>
+
+              {/* Points (if customer) */}
+              {user?.role?.toUpperCase() === "CUSTOMER" && (
+                <>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Active Points
+                    </p>
+                    <p className="text-2xl font-bold text-primary">
+                      {user?.point?.toLocaleString() ?? 0} pts
+                    </p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Account Tab */}
-        <TabsContent value="account" className="space-y-4">
+        <TabsContent value="security" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Password</CardTitle>
@@ -467,7 +570,7 @@ export default function SettingsPage() {
                   )}
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="mt-6">
                 <Button type="submit">Update Password</Button>
               </CardFooter>
             </form>
@@ -671,7 +774,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="mt-4">
                   <Button
                     type="submit"
                     disabled={(!organizerDirty && !logoFile) || isPending}
