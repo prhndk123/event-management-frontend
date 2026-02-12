@@ -31,7 +31,7 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <div className="absolute inset-0 overlay-gradient opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          
+
           {/* Badges */}
           <div className="absolute top-3 left-3 flex gap-2">
             {isFree && (
@@ -78,9 +78,23 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
             <span className="text-lg font-bold text-foreground">
               {formatCurrency(event.price)}
             </span>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Users className="h-3.5 w-3.5" />
-              <span>{event.availableSeats} seats left</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Users className="h-3.5 w-3.5" />
+                <span>
+                  {soldOut
+                    ? "Sold Out"
+                    : `${Math.max(event.availableSeats, 0)} seats left`}
+                </span>
+              </div>
+              {event.totalSeats > 0 && (
+                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${soldOut ? 'bg-destructive' : 'bg-primary'}`}
+                    style={{ width: `${Math.min(((event.totalSeats - Math.max(event.availableSeats, 0)) / event.totalSeats) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
