@@ -40,6 +40,19 @@ export const settingsService = {
     );
     return data;
   },
+  async updateOrganizerProfile(userId: number, payload: any) {
+    const { data } = await axiosInstance.patch(
+      `/users/${userId}/organizer-profile`,
+      payload,
+    );
+    return data;
+  },
+  async getOrganizerProfile(userId: number) {
+    const { data } = await axiosInstance.get(
+      `/users/${userId}/organizer-profile`,
+    );
+    return data;
+  },
   async changePassword(userId: number, payload: ChangePasswordSchema) {
     const { data } = await axiosInstance.patch(`/users/${userId}/password`, {
       oldPassword: payload.oldPassword,

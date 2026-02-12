@@ -6,6 +6,7 @@ export const axiosInstance = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 30000, // 30 seconds
+  withCredentials: true,
 });
 
 // Request interceptor to attach JWT token
@@ -22,7 +23,7 @@ axiosInstance.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor for error handling
@@ -36,8 +37,12 @@ axiosInstance.interceptors.response.use(
       localStorage.removeItem("auth-storage");
 
       // Redirect to login page
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-        window.location.href = "/login?redirect=" + encodeURIComponent(window.location.pathname);
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/login")
+      ) {
+        window.location.href =
+          "/login?redirect=" + encodeURIComponent(window.location.pathname);
       }
     }
 
@@ -47,5 +52,5 @@ axiosInstance.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );

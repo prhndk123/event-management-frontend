@@ -167,7 +167,10 @@ export function Navbar() {
                       </>
                     )}
                     <DropdownMenuItem asChild>
-                      <Link to="/settings" className="cursor-pointer">
+                      <Link
+                        to={isOrganizer ? "/dashboard/settings" : "/settings"}
+                        className="cursor-pointer"
+                      >
                         <Settings className="h-4 w-4 mr-2" />
                         Settings
                       </Link>
