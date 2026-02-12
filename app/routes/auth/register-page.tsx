@@ -42,10 +42,7 @@ export default function RegisterPage() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: RegisterSchema) => authService.register(data),
-    onSuccess: (data) => {
-      // kalau backend kamu balikin user/token
-      registerUser(data);
-
+    onSuccess: () => {
       toast.success("Account created successfully!");
       navigate("/login"); // ⬅️ redirect ke login
     },

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Eye, EyeOff, Building2 } from "lucide-react";
+import { Camera, Eye, EyeOff, Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -37,30 +38,45 @@ import {
   type ChangePasswordSchema,
   type OrganizerProfileSchema,
 } from "~/modules/settings/settings.schema";
+import {
+  settingsService,
+  type UpdateProfilePayload,
+} from "~/modules/settings/settings.service";
 
 export default function SettingsPage() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [publicVisible, setPublicVisible] = useState(true);
 
+  // Organizer state
   const isOrganizer = user?.role?.toUpperCase() === "ORGANIZER";
+  const [organizerData, setOrganizerData] = useState<any>(null);
+
+  // Fetch Organizer Data
+  const { data: fetchedOrganizer, refetch: refetchOrganizer } = useQuery({
+    queryKey: ["organizerProfile", user?.id],
+    queryFn: () => settingsService.getOrganizerProfile(user!.id),
+    enabled: !!user?.id && isOrganizer,
+  });
 
   // Profile Form
   const {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
     formState: { errors: profileErrors, isDirty: profileDirty },
+    reset: resetProfileForm,
   } = useForm<ProfileUpdateSchema>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
       name: user?.name ?? "",
       email: user?.email ?? "",
-      phone: "",
+      phone: user?.phone ?? "",
     },
   });
 
@@ -79,6 +95,9 @@ export default function SettingsPage() {
     register: registerOrganizer,
     handleSubmit: handleOrganizerSubmit,
     formState: { errors: organizerErrors, isDirty: organizerDirty },
+    reset: resetOrganizerForm,
+    setValue: setOrganizerValue,
+    watch: watchOrganizer,
   } = useForm<OrganizerProfileSchema>({
     resolver: zodResolver(organizerProfileSchema),
     defaultValues: {
@@ -92,9 +111,124 @@ export default function SettingsPage() {
     },
   });
 
+  // Watch values for controlled components
+  const publicProfileVisible = watchOrganizer("publicProfileVisible");
+
+  // Sync forms with data
+  useEffect(() => {
+    if (user) {
+      resetProfileForm({
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+      });
+    }
+  }, [user, resetProfileForm]);
+
+  useEffect(() => {
+    if (fetchedOrganizer) {
+      setOrganizerData(fetchedOrganizer);
+      resetOrganizerForm({
+        brandName: fetchedOrganizer.name || "",
+        description: fetchedOrganizer.bio || "",
+        contactInfo: fetchedOrganizer.contactInfo || "",
+        notificationEmail:
+          fetchedOrganizer.notificationEmail || user?.email || "",
+        publicProfileVisible: fetchedOrganizer.publicProfileVisible ?? true,
+        defaultMinPurchase: fetchedOrganizer.defaultMinPurchase ?? 0,
+        defaultVoucherValidityDays:
+          fetchedOrganizer.defaultVoucherValidityDays ?? 30,
+      });
+      if (fetchedOrganizer.avatar) {
+        setLogoPreview(fetchedOrganizer.avatar);
+      }
+    }
+  }, [fetchedOrganizer, resetOrganizerForm, user]);
+
+  // Mutations
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: ProfileUpdateSchema) => {
+      let avatarUrl = user?.avatar;
+
+      if (avatarFile) {
+        const response = await settingsService.uploadAvatar({
+          avatar: avatarFile,
+        });
+        avatarUrl = response.fileURL;
+      }
+
+      const payload: UpdateProfilePayload = {
+        name: data.name,
+        email: data.email, // backend handles unique check
+        phone: data.phone,
+        avatar: avatarUrl ?? undefined,
+      };
+
+      return await settingsService.updateProfile(user!.id, payload);
+    },
+    onSuccess: (data) => {
+      updateUser(data);
+      toast.success("Profile updated successfully!");
+      setConfirmDialogOpen(false);
+      setPendingAction(null);
+      setAvatarFile(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update profile");
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: (data: ChangePasswordSchema) =>
+      settingsService.changePassword(user!.id, data),
+    onSuccess: () => {
+      toast.success("Password updated successfully!");
+      resetPasswordForm();
+      setConfirmDialogOpen(false);
+      setPendingAction(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update password");
+    },
+  });
+
+  const updateOrganizerMutation = useMutation({
+    mutationFn: async (data: OrganizerProfileSchema) => {
+      let logoUrl = organizerData?.avatar; // Use existing logo by default
+
+      if (logoFile) {
+        const response = await settingsService.uploadAvatar({
+          avatar: logoFile,
+        });
+        logoUrl = response.fileURL;
+      }
+
+      const payload = {
+        ...data,
+        logo: logoUrl,
+      };
+
+      return await settingsService.updateOrganizerProfile(user!.id, payload);
+    },
+    onSuccess: (data) => {
+      toast.success("Organizer settings saved!");
+      refetchOrganizer(); // Refresh data
+      setConfirmDialogOpen(false);
+      setPendingAction(null);
+      setLogoFile(null);
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to update organizer settings",
+      );
+    },
+  });
+
+  // Handlers
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setAvatarPreview(reader.result as string);
       reader.readAsDataURL(file);
@@ -104,39 +238,51 @@ export default function SettingsPage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setLogoPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const onProfileSubmit = () => {
+  // Form submission wrappers
+  // Refactor submit logic to store data for confirmation
+  const [pendingData, setPendingData] = useState<any>(null);
+
+  const onProfileFormSubmit = (data: ProfileUpdateSchema) => {
+    setPendingData(data);
     setPendingAction("profile");
     setConfirmDialogOpen(true);
   };
 
-  const onPasswordSubmit = () => {
+  const onPasswordFormSubmit = (data: ChangePasswordSchema) => {
+    setPendingData(data);
     setPendingAction("password");
     setConfirmDialogOpen(true);
   };
 
-  const onOrganizerSubmit = () => {
+  const onOrganizerFormSubmit = (data: OrganizerProfileSchema) => {
+    setPendingData(data);
     setPendingAction("organizer");
     setConfirmDialogOpen(true);
   };
 
-  const handleConfirm = () => {
+  const executePendingAction = () => {
+    if (!pendingData) return;
+
     if (pendingAction === "profile") {
-      toast.success("Profile updated successfully!");
+      updateProfileMutation.mutate(pendingData);
     } else if (pendingAction === "password") {
-      toast.success("Password updated successfully!");
-      resetPasswordForm();
+      changePasswordMutation.mutate(pendingData);
     } else if (pendingAction === "organizer") {
-      toast.success("Organizer settings saved!");
+      updateOrganizerMutation.mutate(pendingData);
     }
-    setConfirmDialogOpen(false);
-    setPendingAction(null);
   };
+
+  const isPending =
+    updateProfileMutation.isPending ||
+    changePasswordMutation.isPending ||
+    updateOrganizerMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -166,7 +312,7 @@ export default function SettingsPage() {
                 Update your public profile information.
               </CardDescription>
             </CardHeader>
-            <form onSubmit={handleProfileSubmit(onProfileSubmit)}>
+            <form onSubmit={handleProfileSubmit(onProfileFormSubmit)}>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="relative">
@@ -217,6 +363,9 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input id="email" {...registerProfile("email")} disabled />
+                    <p className="text-xs text-muted-foreground">
+                      Email cannot be changed directly.
+                    </p>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="phone">Phone Number</Label>
@@ -229,10 +378,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button
-                  type="submit"
-                  disabled={!profileDirty && !avatarPreview}
-                >
+                <Button type="submit" disabled={!profileDirty && !avatarFile}>
                   Save Changes
                 </Button>
               </CardFooter>
@@ -249,7 +395,7 @@ export default function SettingsPage() {
                 Change your password to keep your account secure.
               </CardDescription>
             </CardHeader>
-            <form onSubmit={handlePasswordSubmit(onPasswordSubmit)}>
+            <form onSubmit={handlePasswordSubmit(onPasswordFormSubmit)}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="current-password">Current Password</Label>
@@ -405,7 +551,7 @@ export default function SettingsPage() {
                   Configure your public organizer profile.
                 </CardDescription>
               </CardHeader>
-              <form onSubmit={handleOrganizerSubmit(onOrganizerSubmit)}>
+              <form onSubmit={handleOrganizerSubmit(onOrganizerFormSubmit)}>
                 <CardContent className="space-y-6">
                   {/* Logo Upload */}
                   <div className="flex items-center gap-4">
@@ -498,8 +644,12 @@ export default function SettingsPage() {
                       </p>
                     </div>
                     <Switch
-                      checked={publicVisible}
-                      onCheckedChange={setPublicVisible}
+                      checked={publicProfileVisible}
+                      onCheckedChange={(checked) =>
+                        setOrganizerValue("publicProfileVisible", checked, {
+                          shouldDirty: true,
+                        })
+                      }
                     />
                   </div>
 
@@ -524,7 +674,7 @@ export default function SettingsPage() {
                 <CardFooter>
                   <Button
                     type="submit"
-                    disabled={!organizerDirty && !logoPreview}
+                    disabled={(!organizerDirty && !logoFile) || isPending}
                   >
                     Save Organizer Settings
                   </Button>
@@ -537,7 +687,9 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Default Voucher Settings</CardTitle>
                 <CardDescription>
-                  Set default values for new vouchers you create.
+                  Set default values for new vouchers you create. (This part
+                  allows auto-saving logic if needed, currently reusing the same
+                  form)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -549,7 +701,9 @@ export default function SettingsPage() {
                     <Input
                       id="defaultMinPurchase"
                       type="number"
-                      {...registerOrganizer("defaultMinPurchase")}
+                      {...registerOrganizer("defaultMinPurchase", {
+                        valueAsNumber: true,
+                      })}
                       placeholder="0"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -563,7 +717,9 @@ export default function SettingsPage() {
                     <Input
                       id="defaultVoucherValidityDays"
                       type="number"
-                      {...registerOrganizer("defaultVoucherValidityDays")}
+                      {...registerOrganizer("defaultVoucherValidityDays", {
+                        valueAsNumber: true,
+                      })}
                       placeholder="30"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -575,7 +731,10 @@ export default function SettingsPage() {
               <CardFooter>
                 <Button
                   variant="outline"
-                  onClick={() => toast.success("Voucher defaults saved!")}
+                  onClick={() => {
+                    handleOrganizerSubmit(onOrganizerFormSubmit)();
+                  }}
+                  disabled={isPending}
                 >
                   Save Defaults
                 </Button>
@@ -586,7 +745,10 @@ export default function SettingsPage() {
       </Tabs>
 
       {/* Confirmation Dialog */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+      <Dialog
+        open={confirmDialogOpen}
+        onOpenChange={(open) => !isPending && setConfirmDialogOpen(open)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Changes</DialogTitle>
@@ -600,10 +762,16 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               onClick={() => setConfirmDialogOpen(false)}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button onClick={handleConfirm}>Confirm</Button>
+            <Button onClick={executePendingAction} disabled={isPending}>
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Confirm
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

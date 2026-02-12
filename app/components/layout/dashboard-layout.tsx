@@ -63,10 +63,13 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Sidebar */}
+      {/* Sidebar */}
       <aside
         className={cn(
           "fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300",
-          sidebarOpen ? "w-64" : "w-20",
+          sidebarOpen
+            ? "translate-x-0 w-64"
+            : "-translate-x-full w-64 lg:translate-x-0 lg:w-20",
         )}
       >
         {/* Sidebar Header */}
@@ -75,7 +78,10 @@ export default function DashboardLayout() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Calendar className="h-5 w-5 text-primary-foreground" />
             </div>
-            {sidebarOpen && (
+            {(sidebarOpen ||
+              (!sidebarOpen &&
+                typeof window !== "undefined" &&
+                window.innerWidth < 1024)) && (
               <span className="text-xl font-bold text-foreground">Eventku</span>
             )}
           </Link>
