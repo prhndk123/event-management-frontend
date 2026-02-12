@@ -107,3 +107,18 @@ export const getEventReviews = async (eventId: number) => {
   const response = await api.get(`/events/${eventId}/reviews`);
   return response.data;
 };
+/**
+ * Get all vouchers for the current organizer
+ */
+export const getVouchersByOrganizer = async () => {
+  const response = await api.get("/vouchers/organizer");
+  return response.data;
+};
+
+/**
+ * Get all attendees for the current organizer's events
+ */
+export const getOrganizerAttendees = async () => {
+  const response = await api.get("/events/me/attendees");
+  return response.data;
+};
