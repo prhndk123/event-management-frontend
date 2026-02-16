@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Clock, AlertCircle } from "lucide-react";
+import { Link } from "react-router";
+import {
+  CreditCard,
+  Clock,
+  AlertCircle,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -18,75 +27,39 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
-import {
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  getTransactionStatusLabel,
-} from "~/types";
+import { formatCurrency, formatDate, getTransactionStatusLabel } from "~/types";
+import * as transactionService from "~/services/transaction.service";
 
-// Mock transaction data for customer
-const transactions = [
-  {
-    id: "TRX-2001",
-    eventName: "Neon Music Festival 2024",
-    ticketQuantity: 2,
-    totalPrice: 6000000,
-    status: "waiting_payment",
-    createdAt: "2026-02-02T21:00:00",
-    expiresAt: "2026-02-02T23:00:00", // 2 hours from creation
-  },
-  {
-    id: "TRX-2002",
-    eventName: "Tech Startup Summit",
-    ticketQuantity: 1,
-    totalPrice: 1500000,
-    status: "waiting_confirmation",
-    createdAt: "2026-02-01T14:30:00",
-    expiresAt: null,
-  },
-  {
-    id: "TRX-2003",
-    eventName: "Yoga & Wellness Retreat",
-    ticketQuantity: 3,
-    totalPrice: 1500000,
-    status: "done",
-    createdAt: "2026-01-28T10:00:00",
-    expiresAt: null,
-  },
-  {
-    id: "TRX-2004",
-    eventName: "Jazz Night Live",
-    ticketQuantity: 1,
-    totalPrice: 500000,
-    status: "rejected",
-    createdAt: "2026-01-25T18:00:00",
-    expiresAt: null,
-  },
-  {
-    id: "TRX-2005",
-    eventName: "Food Festival 2026",
-    ticketQuantity: 4,
-    totalPrice: 800000,
-    status: "expired",
-    createdAt: "2026-01-20T09:00:00",
-    expiresAt: null,
-  },
-  {
-    id: "TRX-2006",
-    eventName: "Art Exhibition Opening",
-    ticketQuantity: 2,
-    totalPrice: 400000,
-    status: "cancelled",
-    createdAt: "2026-01-15T16:30:00",
-    expiresAt: null,
-  },
-];
+// DTO type from API
+interface TransactionItem {
+  id: number;
+  eventTitle: string;
+  eventImage: string | null;
+  eventStartDate: string;
+  ticketTypeName: string;
+  ticketQty: number;
+  totalPrice: number;
+  finalPrice: number;
+  status: string;
+  createdAt: string;
+  expiredAt: string;
+}
+
+interface TransactionsResponse {
+  data: TransactionItem[];
+  meta: {
+    page: number;
+    take: number;
+    total: number;
+  };
+}
 
 // Status badge styling
 function getStatusBadgeClass(status: string) {
-  switch (status) {
+  const norm = status.toLowerCase();
+  switch (norm) {
     case "done":
       return "bg-green-100 text-green-700 border-green-200";
     case "waiting_payment":
@@ -150,7 +123,67 @@ function PaymentCountdown({ expiresAt }: { expiresAt: string }) {
   );
 }
 
+// Loading skeleton for transaction table
+function TransactionTableSkeleton() {
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Event</TableHead>
+            <TableHead className="text-center">Qty</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <TableRow key={i}>
+              <TableCell>
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <Skeleton className="h-4 w-6 mx-auto" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-24" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-28" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-8 w-8" />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+const ITEMS_PER_PAGE = 10;
+
 export default function PaymentSettingsPage() {
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isError } = useQuery<TransactionsResponse>({
+    queryKey: ["my-transactions", page],
+    queryFn: () => transactionService.getMyTransactions(page, ITEMS_PER_PAGE),
+  });
+
+  const transactions = data?.data ?? [];
+  const meta = data?.meta;
+  const totalPages = meta ? Math.ceil(meta.total / meta.take) : 1;
+
   return (
     <div className="space-y-6">
       <div>
@@ -196,60 +229,119 @@ export default function PaymentSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {transactions.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Event</TableHead>
-                    <TableHead className="text-center">Qty</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((trx) => (
-                    <TableRow key={trx.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{trx.eventName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {trx.id}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {trx.ticketQuantity}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(trx.totalPrice)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "border-0",
-                            getStatusBadgeClass(trx.status),
-                          )}
-                        >
-                          {getTransactionStatusLabel(trx.status as any)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(trx.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        {trx.status === "waiting_payment" && trx.expiresAt && (
-                          <PaymentCountdown expiresAt={trx.expiresAt} />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          {isLoading ? (
+            <TransactionTableSkeleton />
+          ) : isError ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <AlertCircle className="h-12 w-12 text-destructive/50 mb-4" />
+              <p className="text-destructive font-medium">
+                Failed to load transactions.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Please try again later.
+              </p>
             </div>
+          ) : transactions.length > 0 ? (
+            <>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead className="text-center">Qty</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map((trx) => (
+                      <TableRow key={trx.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{trx.eventTitle}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {trx.ticketTypeName} • #{trx.id}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {trx.ticketQty}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(trx.finalPrice)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "border-0",
+                              getStatusBadgeClass(trx.status),
+                            )}
+                          >
+                            {getTransactionStatusLabel(trx.status as any)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {formatDate(trx.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {trx.status.toLowerCase() === "waiting_payment" &&
+                              trx.expiredAt && (
+                                <PaymentCountdown expiresAt={trx.expiredAt} />
+                              )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              asChild
+                            >
+                              <Link to={`/payment/${trx.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Page {meta?.page} of {totalPages} ({meta?.total}{" "}
+                    transactions)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={page >= totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <AlertCircle className="h-12 w-12 text-muted-foreground/50 mb-4" />
