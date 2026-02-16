@@ -53,7 +53,7 @@ export default function StatisticsPage() {
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() => {
     const to = new Date();
     const from = new Date();
-    from.setMonth(from.getMonth() - 5);
+    from.setMonth(from.getMonth() - 3);
     from.setDate(1);
     return { from, to };
   });
