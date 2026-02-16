@@ -87,6 +87,11 @@ export default function SettingsLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  // Redirect to dashboard settings if user is an organizer
+  if (user.role === "ORGANIZER") {
+    return <Navigate to="/dashboard/settings" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Mobile Header */}

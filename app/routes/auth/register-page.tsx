@@ -229,18 +229,20 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <div>
-              <Label htmlFor="referralCode">Referral Code (Optional)</Label>
-              <Input
-                id="referralCode"
-                placeholder="Enter referral code"
-                className="mt-1.5 input-focus"
-                {...register("referralCode")}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Get 10,000 points when you sign up with a referral code!
-              </p>
-            </div>
+            {selectedRole === "CUSTOMER" && (
+              <div>
+                <Label htmlFor="referralCode">Referral Code (Optional)</Label>
+                <Input
+                  id="referralCode"
+                  placeholder="Enter referral code"
+                  className="mt-1.5 input-focus"
+                  {...register("referralCode")}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Get 10,000 points when you sign up with a referral code!
+                </p>
+              </div>
+            )}
 
             <Button
               type="submit"

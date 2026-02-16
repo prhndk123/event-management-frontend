@@ -1,18 +1,20 @@
-import { Link } from 'react-router';
-import { motion } from 'framer-motion';
-import { Ticket, Calendar, Loader2 } from 'lucide-react';
-import { Button } from '~/components/ui/button';
-import { StatusBadge } from '~/components/shared/status-badge';
-import { EmptyState } from '~/components/shared/empty-state';
-import { formatCurrency, formatDate } from '~/types';
-import { useQuery } from '@tanstack/react-query';
-import * as transactionService from '~/services/transaction.service';
+import { Link } from "react-router";
+import { motion } from "framer-motion";
+import { Ticket, Calendar, Loader2 } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { StatusBadge } from "~/components/shared/status-badge";
+import { EmptyState } from "~/components/shared/empty-state";
+import { formatCurrency, formatDate } from "~/types";
+import { useQuery } from "@tanstack/react-query";
+import * as transactionService from "~/services/transaction.service";
 
 export default function TransactionsPage() {
-  const { data: transactions, isLoading } = useQuery({
-    queryKey: ['my-transactions'],
-    queryFn: () => transactionService.getMyTransactions(),
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["my-transactions"],
+    queryFn: () => transactionService.getMyTransactions(1, 50),
   });
+
+  const transactions = response?.data ?? [];
 
   if (isLoading) {
     return (
@@ -22,7 +24,7 @@ export default function TransactionsPage() {
     );
   }
 
-  if (!transactions || transactions.length === 0) {
+  if (transactions.length === 0) {
     return (
       <div className="min-h-screen bg-muted/30 py-12">
         <div className="container-wide">
@@ -30,7 +32,7 @@ export default function TransactionsPage() {
             icon={Ticket}
             title="No transactions yet"
             description="Your ticket purchases will appear here."
-            action={{ label: 'Browse Events', onClick: () => { } }}
+            action={{ label: "Browse Events", onClick: () => {} }}
           />
         </div>
       </div>
@@ -50,20 +52,31 @@ export default function TransactionsPage() {
               transition={{ delay: index * 0.1 }}
               className="bg-card rounded-xl border border-border p-4 flex gap-4"
             >
-              <img src={txn.event.image} alt={txn.event.title} className="w-24 h-24 rounded-lg object-cover" />
+              {txn.eventImage && (
+                <img
+                  src={txn.eventImage}
+                  alt={txn.eventTitle}
+                  className="w-24 h-24 rounded-lg object-cover"
+                />
+              )}
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-semibold">{txn.event.title}</h3>
+                    <h3 className="font-semibold">{txn.eventTitle}</h3>
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3" /> {formatDate(txn.event.startDate)}
+                      <Calendar className="h-3 w-3" />{" "}
+                      {formatDate(txn.eventStartDate)}
                     </p>
-                    <p className="text-sm text-primary">{txn.ticketType.name} × {txn.quantity}</p>
+                    <p className="text-sm text-primary">
+                      {txn.ticketTypeName} × {txn.ticketQty}
+                    </p>
                   </div>
                   <StatusBadge status={txn.status} />
                 </div>
                 <div className="flex items-center justify-between mt-3">
-                  <span className="font-semibold">{formatCurrency(txn.finalPrice)}</span>
+                  <span className="font-semibold">
+                    {formatCurrency(txn.finalPrice)}
+                  </span>
                   <Button variant="outline" size="sm" asChild>
                     <Link to={`/payment/${txn.id}`}>View Details</Link>
                   </Button>
