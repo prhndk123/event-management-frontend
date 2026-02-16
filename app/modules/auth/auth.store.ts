@@ -12,6 +12,8 @@ interface User {
   point: number;
   referralCode: string;
   phone: string;
+  pointsExpiringSoon?: number;
+  pointsExpiryDate?: string | null;
 }
 
 interface AuthState {
@@ -48,6 +50,8 @@ export const useAuthStore = create<AuthState>()(
             point: data.point,
             referralCode: data.referralCode,
             phone: data.phone,
+            pointsExpiringSoon: data.pointsExpiringSoon,
+            pointsExpiryDate: data.pointsExpiryDate,
           },
           isAuthenticated: true,
         });

@@ -8,6 +8,8 @@ export interface User {
   role: "CUSTOMER" | "ORGANIZER";
   referralCode: string;
   points: number;
+  pointsExpiringSoon?: number;
+  pointsExpiryDate?: string | null;
   createdAt: string;
 }
 

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Copy, Check, AlertTriangle, Gift, Coins, Ticket } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { axiosInstance } from "~/lib/axios";
+import { Navigate } from "react-router";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -21,64 +24,61 @@ import {
 } from "~/components/ui/table";
 import { useAuthStore } from "~/modules/auth/auth.store";
 import { formatCurrency, formatDate } from "~/types";
+import { Skeleton } from "~/components/ui/skeleton";
 
-// Mock data for points history
-const pointsHistory = [
-  {
-    id: "1",
-    date: "2026-01-28T10:00:00",
-    amount: 10000,
-    description: "Referral bonus - John Doe signed up",
-    expiresAt: "2026-04-28T10:00:00",
-  },
-  {
-    id: "2",
-    date: "2026-01-15T14:30:00",
-    amount: 5000,
-    description: "First purchase bonus",
-    expiresAt: "2026-04-15T14:30:00",
-  },
-  {
-    id: "3",
-    date: "2026-01-02T09:00:00",
-    amount: -3000,
-    description: "Used for ticket purchase",
-    expiresAt: null,
-  },
-];
+interface PointHistoryItem {
+  id: number;
+  amount: number;
+  description: string;
+  expiredAt: string | null;
+  createdAt: string;
+  type: string;
+  isExpired?: boolean;
+}
 
-// Mock data for coupons
-const coupons = [
-  {
-    id: "1",
-    code: "WELCOME10",
-    discount: 10000,
-    expiresAt: "2026-02-05T23:59:59",
-    isExpiringSoon: true,
-  },
-  {
-    id: "2",
-    code: "REFERRAL20",
-    discount: 20000,
-    expiresAt: "2026-03-15T23:59:59",
-    isExpiringSoon: false,
-  },
-  {
-    id: "3",
-    code: "EVENT50K",
-    discount: 50000,
-    expiresAt: "2026-04-01T23:59:59",
-    isExpiringSoon: false,
-  },
-];
+interface CouponItem {
+  id: number;
+  code: string;
+  discountAmount: number;
+  expiredAt: string;
+  isExpiringSoon: boolean;
+}
+
+interface ReferralData {
+  referralCode: string | null;
+  totalReferrals: number;
+  totalPoints: number;
+  pointsHistory: PointHistoryItem[];
+  coupons: CouponItem[];
+  pointsExpiringSoon: number;
+  pointsExpiryDate: string | null;
+}
 
 export default function ReferralRewardsPage() {
   const { user } = useAuthStore();
   const [copied, setCopied] = useState(false);
 
+  // 1. Role Check
+  if (user?.role !== "CUSTOMER") {
+    // Redirect or show access denied
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // 2. Fetch Data
+  const { data, isLoading, isError, error } = useQuery<ReferralData>({
+    queryKey: ["referral-rewards"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/users/referrals");
+      return response.data;
+    },
+    // Only fetch if user is customer (double safety)
+    enabled: user?.role === "CUSTOMER",
+    retry: false,
+  });
+
   const handleCopyReferral = () => {
-    if (user?.referralCode) {
-      navigator.clipboard.writeText(user.referralCode);
+    if (data?.referralCode) {
+      navigator.clipboard.writeText(data.referralCode);
       setCopied(true);
       toast.success("Referral code copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
@@ -90,11 +90,41 @@ export default function ReferralRewardsPage() {
     toast.success(`Coupon code "${code}" copied!`);
   };
 
-  const totalPoints = user?.point ?? 0;
-  const totalReferrals = 5; // Mock data
+  // 3. Loading State
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Skeleton className="h-12 w-full rounded-md" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
+        </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
 
-  // Check if any points or coupons are expiring soon (within 7 days)
-  const hasExpiringItems = coupons.some((c) => c.isExpiringSoon);
+  // 4. Error State
+  if (isError) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-center">
+        <AlertTriangle className="h-12 w-12 text-destructive" />
+        <h3 className="text-lg font-semibold">Failed to load rewards data</h3>
+        <p className="text-muted-foreground">
+          {error instanceof Error ? error.message : "Something went wrong"}
+        </p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    );
+  }
+
+  // Check if any coupons are expiring soon
+  const hasExpiringItems = data?.coupons.some((c) => c.isExpiringSoon);
 
   return (
     <div className="space-y-6">
@@ -106,6 +136,26 @@ export default function ReferralRewardsPage() {
           Share your referral code and track your rewards.
         </p>
       </div>
+
+      {/* Points Expiration Warning Banner */}
+      {/* Points Expiration Warning Banner */}
+      {/* Points Expiration Warning Banner */}
+      {(data?.pointsExpiringSoon ?? 0) > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4 text-orange-800 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-200">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Points Expiring Soon!</p>
+            <p className="text-sm">
+              You have {data?.pointsExpiringSoon.toLocaleString()} points
+              expiring on{" "}
+              {data?.pointsExpiryDate
+                ? formatDate(data.pointsExpiryDate)
+                : "soon"}
+              . Use them now!
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Expiration Warning Banner */}
       {hasExpiringItems && (
@@ -132,10 +182,15 @@ export default function ReferralRewardsPage() {
           <div className="flex items-center gap-3">
             <div className="flex-1 rounded-lg bg-muted px-4 py-3">
               <code className="text-lg font-bold tracking-wider">
-                {user?.referralCode ?? "N/A"}
+                {data?.referralCode ?? "N/A"}
               </code>
             </div>
-            <Button onClick={handleCopyReferral} variant="outline" size="lg">
+            <Button
+              onClick={handleCopyReferral}
+              variant="outline"
+              size="lg"
+              disabled={!data?.referralCode}
+            >
               {copied ? (
                 <>
                   <Check className="mr-2 h-4 w-4 text-green-500" />
@@ -160,7 +215,9 @@ export default function ReferralRewardsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold">{totalReferrals}</span>
+              <span className="text-3xl font-bold">
+                {data?.totalReferrals ?? 0}
+              </span>
               <span className="text-muted-foreground">people</span>
             </div>
           </CardContent>
@@ -174,7 +231,7 @@ export default function ReferralRewardsPage() {
             <div className="flex items-center gap-2">
               <Coins className="h-6 w-6 text-yellow-500" />
               <span className="text-3xl font-bold">
-                {totalPoints.toLocaleString()}
+                {data?.totalPoints.toLocaleString() ?? 0}
               </span>
               <span className="text-muted-foreground">pts</span>
             </div>
@@ -191,7 +248,7 @@ export default function ReferralRewardsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {pointsHistory.length > 0 ? (
+          {(data?.pointsHistory?.length ?? 0) > 0 ? (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -203,22 +260,49 @@ export default function ReferralRewardsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pointsHistory.map((entry) => (
-                    <TableRow key={entry.id}>
+                  {data?.pointsHistory.map((entry) => (
+                    <TableRow
+                      key={entry.id}
+                      className={entry.isExpired ? "opacity-60 grayscale" : ""}
+                    >
                       <TableCell className="text-muted-foreground">
-                        {formatDate(entry.date)}
+                        {formatDate(entry.createdAt)}
                       </TableCell>
-                      <TableCell>{entry.description}</TableCell>
+                      <TableCell>
+                        {entry.description}
+                        {entry.isExpired && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-2 bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400"
+                          >
+                            Expired
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell
                         className={`text-right font-medium ${
-                          entry.amount >= 0 ? "text-green-600" : "text-red-600"
+                          entry.type === "USED" || entry.amount < 0
+                            ? "text-red-600"
+                            : entry.isExpired
+                              ? "text-muted-foreground line-through"
+                              : "text-green-600"
                         }`}
                       >
-                        {entry.amount >= 0 ? "+" : ""}
+                        {entry.amount >= 0 && entry.type !== "USED" ? "+" : ""}
                         {entry.amount.toLocaleString()} pts
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {entry.expiresAt ? formatDate(entry.expiresAt) : "—"}
+                        {entry.expiredAt ? (
+                          entry.isExpired ? (
+                            <span className="text-red-500">
+                              Expired on {formatDate(entry.expiredAt)}
+                            </span>
+                          ) : (
+                            formatDate(entry.expiredAt)
+                          )
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -249,9 +333,9 @@ export default function ReferralRewardsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {coupons.length > 0 ? (
+          {(data?.coupons?.length ?? 0) > 0 ? (
             <div className="space-y-3">
-              {coupons.map((coupon) => (
+              {data?.coupons.map((coupon) => (
                 <div
                   key={coupon.id}
                   className={`flex items-center justify-between rounded-lg border p-4 ${
@@ -273,8 +357,8 @@ export default function ReferralRewardsPage() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Discount: {formatCurrency(coupon.discount)} • Expires:{" "}
-                      {formatDate(coupon.expiresAt)}
+                      Discount: {formatCurrency(coupon.discountAmount)} •
+                      Expires: {formatDate(coupon.expiredAt)}
                     </p>
                   </div>
                   <Button
