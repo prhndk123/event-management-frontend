@@ -8,6 +8,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
@@ -52,6 +53,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { Textarea } from "~/components/ui/textarea";
+import { Label } from "~/components/ui/label";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as transactionService from "~/services/transaction.service";
@@ -79,6 +82,11 @@ export default function TransactionsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Reject dialog state
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectingTrx, setRejectingTrx] = useState<any>(null);
+
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["organizer-transactions"],
     queryFn: () => transactionService.getOrganizerTransactions(),
@@ -88,21 +96,27 @@ export default function TransactionsPage() {
     mutationFn: (id: number) => transactionService.confirmTransaction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer-transactions"] });
-      toast.success("Payment approved successfully.");
+      toast.success("Payment approved successfully!");
       setDetailOpen(false);
     },
     onError: () => toast.error("Failed to approve payment."),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (id: number) => transactionService.rejectTransaction(id),
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      transactionService.rejectTransaction(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer-transactions"] });
-      toast.error("Payment rejected.");
+      toast.success("Payment has been rejected.");
       setDetailOpen(false);
+      setRejectDialogOpen(false);
+      setRejectReason("");
+      setRejectingTrx(null);
     },
     onError: () => toast.error("Failed to reject payment."),
   });
+
+  const isProcessing = approveMutation.isPending || rejectMutation.isPending;
 
   const handleViewDetails = (trx: any) => {
     setSelectedTrx(trx);
@@ -113,14 +127,26 @@ export default function TransactionsPage() {
     toast.success(`Downloading invoice for transaction ${trxId}...`);
   };
 
-  const handleApprove = () => {
-    if (!selectedTrx) return;
-    approveMutation.mutate(selectedTrx.id);
+  const handleApprove = (trx?: any) => {
+    const target = trx || selectedTrx;
+    if (!target) return;
+    approveMutation.mutate(target.id);
   };
 
-  const handleReject = () => {
-    if (!selectedTrx) return;
-    rejectMutation.mutate(selectedTrx.id);
+  const openRejectDialog = (trx?: any) => {
+    const target = trx || selectedTrx;
+    if (!target) return;
+    setRejectingTrx(target);
+    setRejectReason("");
+    setRejectDialogOpen(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (!rejectingTrx) return;
+    rejectMutation.mutate({
+      id: rejectingTrx.id,
+      reason: rejectReason.trim() || undefined,
+    });
   };
 
   const filteredTransactions = transactions?.filter(
@@ -140,6 +166,30 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
+      {/* ===== Fullscreen Loading Overlay ===== */}
+      {isProcessing && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+              <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-foreground">
+                {approveMutation.isPending
+                  ? "Approving Payment..."
+                  : "Rejecting Payment..."}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {approveMutation.isPending
+                  ? "Generating tickets and sending confirmation email"
+                  : "Processing rejection and notifying the customer"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
@@ -269,13 +319,13 @@ export default function TransactionsPage() {
                             <>
                               <DropdownMenuItem
                                 className="text-green-600"
-                                onClick={() => approveMutation.mutate(trx.id)}
+                                onClick={() => handleApprove(trx)}
                               >
                                 <CheckCircle className="mr-2 h-4 w-4" /> Approve
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-red-600"
-                                onClick={() => rejectMutation.mutate(trx.id)}
+                                onClick={() => openRejectDialog(trx)}
                               >
                                 <XCircle className="mr-2 h-4 w-4" /> Reject
                               </DropdownMenuItem>
@@ -292,7 +342,7 @@ export default function TransactionsPage() {
         </CardContent>
       </Card>
 
-      {/* Transaction Details Dialog */}
+      {/* ===== Transaction Details Dialog ===== */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -404,29 +454,119 @@ export default function TransactionsPage() {
               <>
                 <Button
                   variant="destructive"
-                  onClick={handleReject}
-                  disabled={
-                    rejectMutation.isPending || approveMutation.isPending
-                  }
+                  onClick={() => openRejectDialog()}
+                  disabled={isProcessing}
                 >
-                  {rejectMutation.isPending ? "Rejecting..." : "Reject Payment"}
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
                 </Button>
                 <Button
                   variant="default"
                   className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={handleApprove}
-                  disabled={
-                    rejectMutation.isPending || approveMutation.isPending
-                  }
+                  onClick={() => handleApprove()}
+                  disabled={isProcessing}
                 >
-                  {approveMutation.isPending
-                    ? "Approving..."
-                    : "Approve Payment"}
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve
                 </Button>
               </>
             ) : (
               <Button onClick={() => setDetailOpen(false)}>Close</Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Reject Reason Dialog ===== */}
+      <Dialog
+        open={rejectDialogOpen}
+        onOpenChange={(open) => {
+          if (!rejectMutation.isPending) {
+            setRejectDialogOpen(open);
+            if (!open) {
+              setRejectReason("");
+              setRejectingTrx(null);
+            }
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Reject Payment
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reject this payment? This action cannot
+              be undone. The customer will be notified via email.
+            </DialogDescription>
+          </DialogHeader>
+
+          {rejectingTrx && (
+            <div className="space-y-4 py-2">
+              {/* Transaction info preview */}
+              <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                <p className="text-sm font-medium">
+                  #{rejectingTrx.id} — {rejectingTrx.event.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {rejectingTrx.user.name} • {rejectingTrx.ticketType.name} ×{" "}
+                  {rejectingTrx.ticketQty}
+                </p>
+              </div>
+
+              {/* Reason textarea */}
+              <div className="space-y-2">
+                <Label htmlFor="reject-reason" className="text-sm font-medium">
+                  Rejection Reason{" "}
+                  <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Textarea
+                  id="reject-reason"
+                  placeholder="e.g. Invalid payment proof, payment amount doesn't match, duplicate transaction..."
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  rows={4}
+                  className="resize-none"
+                  disabled={rejectMutation.isPending}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This reason will be included in the rejection email sent to
+                  the customer.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectDialogOpen(false);
+                setRejectReason("");
+                setRejectingTrx(null);
+              }}
+              disabled={rejectMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={rejectMutation.isPending}
+            >
+              {rejectMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Confirm Reject
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

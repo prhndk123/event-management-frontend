@@ -23,6 +23,8 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { useAuthStore } from "~/modules/auth/auth.store";
+import { CartDropdown } from "./cart-dropdown";
+import { NotificationDropdown } from "./notification-dropdown";
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -70,7 +72,7 @@ export function Navbar() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Search Button */}
             <Button
               variant="ghost"
@@ -99,6 +101,12 @@ export function Navbar() {
                     </Link>
                   </Button>
                 )}
+
+                {/* Cart Icon */}
+                <CartDropdown />
+
+                {/* Notification Bell */}
+                <NotificationDropdown />
 
                 {/* User Menu */}
                 <DropdownMenu>
@@ -141,12 +149,9 @@ export function Navbar() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link
-                            to="/dashboard/events"
-                            className="cursor-pointer"
-                          >
+                          <Link to="/transactions" className="cursor-pointer">
                             <Calendar className="h-4 w-4 mr-2" />
-                            My Events
+                            My Tickets
                           </Link>
                         </DropdownMenuItem>
                       </>

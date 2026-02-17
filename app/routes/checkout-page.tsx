@@ -117,7 +117,10 @@ export default function CheckoutPage() {
         pointsToUse: pointsToUse,
       };
 
-      const transaction = await createTransaction(Number(firstItem.event.id), transactionData);
+      const transaction = await createTransaction(
+        Number(firstItem.event.id),
+        transactionData,
+      );
 
       toast.success("Order placed successfully!");
       clearCart();
@@ -126,7 +129,10 @@ export default function CheckoutPage() {
       navigate(`/payment/${transaction.id}`);
     } catch (error: any) {
       console.error("Checkout error:", error);
-      toast.error(error.response?.data?.message || "Failed to create transaction. Please try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to create transaction. Please try again.",
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -269,7 +275,7 @@ export default function CheckoutPage() {
                       {appliedVoucher.discountType === "percentage"
                         ? `${appliedVoucher.discountAmount}% off`
                         : formatCurrency(appliedVoucher.discountAmount) +
-                        " off"}
+                          " off"}
                     </p>
                   </div>
                   <Button
@@ -345,8 +351,8 @@ export default function CheckoutPage() {
               </p>
             </motion.div>
 
-            {/* Points */}
-            {user && user.point > 0 && (
+            {/* Points - hidden for organizers */}
+            {user && user.point > 0 && user.role !== "ORGANIZER" && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

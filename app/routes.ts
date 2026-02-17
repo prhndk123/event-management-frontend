@@ -59,6 +59,11 @@ export default [
   route("/reset-password", "routes/auth/reset-password-page.tsx"),
 
   // =====================
+  // Check-in (Public, no layout)
+  // =====================
+  route("/check-in/:token", "routes/check-in-page.tsx"),
+
+  // =====================
   // 404
   // =====================
   route("*", "routes/not-found.tsx"),
