@@ -1,5 +1,5 @@
-import { Link } from 'react-router';
-import { motion } from 'framer-motion';
+import { Link } from "react-router";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   Calendar,
@@ -8,16 +8,17 @@ import {
   TrendingUp,
   Users,
   Zap,
-  Loader2
-} from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { Button } from '~/components/ui/button';
-import { EventCard } from '~/components/events/event-card';
-import * as eventService from '~/services/event.service';
+  Loader2,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "~/components/ui/button";
+import { EventCard } from "~/components/events/event-card";
+import { HeroEventStack } from "~/components/home/hero-event-stack";
+import * as eventService from "~/services/event.service";
 
 export default function LandingPage() {
   const { data, isLoading } = useQuery({
-    queryKey: ['featured-events'],
+    queryKey: ["featured-events"],
     queryFn: () => eventService.getEvents({ take: 6 }),
   });
 
@@ -26,31 +27,35 @@ export default function LandingPage() {
   const features = [
     {
       icon: Calendar,
-      title: 'Easy Event Discovery',
-      description: 'Find events that match your interests with smart filters and personalized recommendations.',
+      title: "Easy Event Discovery",
+      description:
+        "Find events that match your interests with smart filters and personalized recommendations.",
     },
     {
       icon: Ticket,
-      title: 'Seamless Ticketing',
-      description: 'Purchase tickets in seconds with secure payment and instant delivery to your email.',
+      title: "Seamless Ticketing",
+      description:
+        "Purchase tickets in seconds with secure payment and instant delivery to your email.",
     },
     {
       icon: Shield,
-      title: 'Secure Transactions',
-      description: 'Your payments are protected with bank-level security and fraud prevention.',
+      title: "Secure Transactions",
+      description:
+        "Your payments are protected with bank-level security and fraud prevention.",
     },
     {
       icon: TrendingUp,
-      title: 'Powerful Analytics',
-      description: 'Organizers get real-time insights to grow their events and engage audiences.',
+      title: "Powerful Analytics",
+      description:
+        "Organizers get real-time insights to grow their events and engage audiences.",
     },
   ];
 
   const stats = [
-    { value: '10K+', label: 'Events Hosted' },
-    { value: '500K+', label: 'Tickets Sold' },
-    { value: '50K+', label: 'Happy Customers' },
-    { value: '1000+', label: 'Organizers' },
+    { value: "10K+", label: "Events Hosted" },
+    { value: "500K+", label: "Tickets Sold" },
+    { value: "50K+", label: "Happy Customers" },
+    { value: "1000+", label: "Organizers" },
   ];
 
   return (
@@ -69,12 +74,13 @@ export default function LandingPage() {
                 Indonesia's #1 Event Platform
               </span>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-tight mb-6">
-                Discover Events That{' '}
+                Discover Events That{" "}
                 <span className="text-gradient">Inspire You</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8 max-w-lg">
-                From music festivals to tech conferences, find your next unforgettable experience.
-                Join thousands of event-goers and create memories that last.
+                From music festivals to tech conferences, find your next
+                unforgettable experience. Join thousands of event-goers and
+                create memories that last.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="btn-gradient text-lg px-8" asChild>
@@ -83,10 +89,13 @@ export default function LandingPage() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="text-lg px-8" asChild>
-                  <Link to="/register?role=organizer">
-                    Become an Organizer
-                  </Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg px-8"
+                  asChild
+                >
+                  <Link to="/register?role=organizer">Become an Organizer</Link>
                 </Button>
               </div>
             </motion.div>
@@ -97,24 +106,7 @@ export default function LandingPage() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative hidden lg:block"
             >
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop"
-                  alt="Event"
-                  className="rounded-2xl shadow-2xl"
-                />
-                <div className="absolute -bottom-6 -left-6 bg-card p-4 rounded-xl shadow-lg border border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                      <Users className="h-6 w-6 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">50K+</p>
-                      <p className="text-sm text-muted-foreground">Happy Customers</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <HeroEventStack events={featuredEvents.slice(0, 5)} />
             </motion.div>
           </div>
         </div>
@@ -139,7 +131,9 @@ export default function LandingPage() {
                 transition={{ duration: 0.4, delay: index * 0.1 }}
                 className="text-center"
               >
-                <p className="text-3xl sm:text-4xl font-bold text-primary mb-1">{stat.value}</p>
+                <p className="text-3xl sm:text-4xl font-bold text-primary mb-1">
+                  {stat.value}
+                </p>
                 <p className="text-sm text-background/70">{stat.label}</p>
               </motion.div>
             ))}
@@ -152,8 +146,12 @@ export default function LandingPage() {
         <div className="container-wide">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
             <div>
-              <h2 className="text-3xl font-bold text-foreground mb-2">Upcoming Events</h2>
-              <p className="text-muted-foreground">Don't miss out on these amazing experiences</p>
+              <h2 className="text-3xl font-bold text-foreground mb-2">
+                Upcoming Events
+              </h2>
+              <p className="text-muted-foreground">
+                Don't miss out on these amazing experiences
+              </p>
             </div>
             <Button variant="outline" asChild>
               <Link to="/events">
@@ -174,7 +172,9 @@ export default function LandingPage() {
               ))
             ) : (
               <div className="col-span-full text-center py-20">
-                <p className="text-muted-foreground text-lg">No upcoming events found.</p>
+                <p className="text-muted-foreground text-lg">
+                  No upcoming events found.
+                </p>
               </div>
             )}
           </div>
@@ -185,9 +185,12 @@ export default function LandingPage() {
       <section className="py-20 bg-muted/50">
         <div className="container-wide">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Why Choose Eventku?</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-4">
+              Why Choose Eventku?
+            </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              We make discovering and organizing events simple, secure, and enjoyable for everyone.
+              We make discovering and organizing events simple, secure, and
+              enjoyable for everyone.
             </p>
           </div>
 
@@ -204,8 +207,12 @@ export default function LandingPage() {
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <feature.icon className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
+                <h3 className="font-semibold text-foreground mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {feature.description}
+                </p>
               </motion.div>
             ))}
           </div>
@@ -224,8 +231,8 @@ export default function LandingPage() {
               Ready to Create Your Event?
             </h2>
             <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto mb-8">
-              Join thousands of organizers who trust Eventku to manage their events.
-              Start selling tickets in minutes.
+              Join thousands of organizers who trust Eventku to manage their
+              events. Start selling tickets in minutes.
             </p>
             <Button
               size="lg"

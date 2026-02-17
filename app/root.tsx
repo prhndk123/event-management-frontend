@@ -39,7 +39,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           {children}
         </QueryClientProvider>
-        <Toaster richColors position="top-left" closeButton />
+        <Toaster richColors position="bottom-right" closeButton />
         <ScrollRestoration />
         <Scripts />
       </body>

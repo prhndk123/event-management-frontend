@@ -1,9 +1,9 @@
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router';
-import { useAuthStore } from '~/store/auth-store';
+import { ReactNode } from "react";
+import { Navigate } from "react-router";
+import { useAuthStore } from "~/modules/auth/auth.store";
 
 interface PublicOnlyRouteProps {
-    children: ReactNode;
+  children: ReactNode;
 }
 
 /**
@@ -11,11 +11,11 @@ interface PublicOnlyRouteProps {
  * (e.g., login, register pages)
  */
 export function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
-    const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
-    if (isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
-    }
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
-    return <>{children}</>;
+  return <>{children}</>;
 }

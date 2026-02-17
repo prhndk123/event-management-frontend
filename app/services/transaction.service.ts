@@ -77,8 +77,13 @@ export const confirmTransaction = async (transactionId: number) => {
 /**
  * Reject transaction (Organizer only)
  */
-export const rejectTransaction = async (transactionId: number) => {
-  const response = await api.put(`/transactions/${transactionId}/reject`);
+export const rejectTransaction = async (
+  transactionId: number,
+  reason?: string,
+) => {
+  const response = await api.put(`/transactions/${transactionId}/reject`, {
+    reason,
+  });
   return response.data;
 };
 
@@ -87,5 +92,21 @@ export const rejectTransaction = async (transactionId: number) => {
  */
 export const cancelTransaction = async (transactionId: number) => {
   const response = await api.put(`/transactions/${transactionId}/cancel`);
+  return response.data;
+};
+
+/**
+ * Get tickets (attendees) for a confirmed transaction
+ */
+export const getTickets = async (transactionId: number) => {
+  const response = await api.get(`/transactions/${transactionId}/tickets`);
+  return response.data;
+};
+
+/**
+ * Check-in via QR token (public)
+ */
+export const checkInByToken = async (token: string) => {
+  const response = await api.get(`/check-in/${token}`);
   return response.data;
 };

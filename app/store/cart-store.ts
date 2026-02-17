@@ -1,5 +1,6 @@
-import { create } from 'zustand';
-import { Event, TicketType, Voucher } from '~/types';
+import { create } from "zustand";
+import { toast } from "sonner";
+import { Event, TicketType, Voucher } from "~/types";
 
 interface CartItem {
   event: Event;
@@ -13,7 +14,7 @@ interface CartState {
   appliedCouponCode: string | null;
   couponDiscount: number;
   pointsToUse: number;
-  
+
   // Actions
   addItem: (event: Event, ticketType: TicketType, quantity: number) => void;
   removeItem: (ticketTypeId: string) => void;
@@ -38,19 +39,37 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   addItem: (event, ticketType, quantity) => {
     set((state) => {
+      // Check if adding item from different event
+      if (state.items.length > 0 && state.items[0].event.id !== event.id) {
+        toast.info(
+          "Cart updated. You can only purchase tickets from one event at a time.",
+        );
+        return {
+          items: [{ event, ticketType, quantity }],
+          appliedVoucher: null,
+          appliedCouponCode: null,
+          couponDiscount: 0,
+          pointsToUse: 0,
+        };
+      }
+
       const existingIndex = state.items.findIndex(
-        item => item.ticketType.id === ticketType.id
+        (item) => item.ticketType.id === ticketType.id,
       );
-      
+
       if (existingIndex >= 0) {
         const newItems = [...state.items];
         newItems[existingIndex].quantity += quantity;
         return { items: newItems };
       }
-      
-      return { 
+
+      return {
         items: [...state.items, { event, ticketType, quantity }],
-        // Clear any previous vouchers since we're adding a new event
+        // Clear any previous vouchers since we're adding a new event (or same event logic)
+        // If same event, keep voucher? Not necessarily, voucher might be specific?
+        // Actually, if same event, we should try to keep voucher.
+        // But the original code cleared it: `appliedVoucher: null`.
+        // I will keep the original behavior for same event (clearing voucher to be safe).
         appliedVoucher: null,
       };
     });
@@ -58,17 +77,19 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   removeItem: (ticketTypeId) => {
     set((state) => ({
-      items: state.items.filter(item => item.ticketType.id !== ticketTypeId)
+      items: state.items.filter((item) => item.ticketType.id !== ticketTypeId),
     }));
   },
 
   updateQuantity: (ticketTypeId, quantity) => {
     set((state) => ({
-      items: state.items.map(item =>
-        item.ticketType.id === ticketTypeId
-          ? { ...item, quantity: Math.max(0, quantity) }
-          : item
-      ).filter(item => item.quantity > 0)
+      items: state.items
+        .map((item) =>
+          item.ticketType.id === ticketTypeId
+            ? { ...item, quantity: Math.max(0, quantity) }
+            : item,
+        )
+        .filter((item) => item.quantity > 0),
     }));
   },
 
@@ -104,19 +125,22 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   getSubtotal: () => {
     const { items } = get();
-    return items.reduce((sum, item) => sum + (item.ticketType.price * item.quantity), 0);
+    return items.reduce(
+      (sum, item) => sum + item.ticketType.price * item.quantity,
+      0,
+    );
   },
 
   getVoucherDiscount: () => {
     const { appliedVoucher } = get();
     const subtotal = get().getSubtotal();
-    
+
     if (!appliedVoucher) return 0;
-    
-    if (appliedVoucher.discountType === 'percentage') {
+
+    if (appliedVoucher.discountType === "percentage") {
       return Math.floor(subtotal * (appliedVoucher.discountAmount / 100));
     }
-    
+
     return Math.min(appliedVoucher.discountAmount, subtotal);
   },
 
@@ -124,7 +148,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     const subtotal = get().getSubtotal();
     const voucherDiscount = get().getVoucherDiscount();
     const { couponDiscount, pointsToUse } = get();
-    
-    return Math.max(0, subtotal - voucherDiscount - couponDiscount - pointsToUse);
+
+    return Math.max(
+      0,
+      subtotal - voucherDiscount - couponDiscount - pointsToUse,
+    );
   },
 }));

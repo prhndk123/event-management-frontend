@@ -18,6 +18,7 @@ export default [
 
     route("/checkout", "routes/checkout-page.tsx"),
     route("/payment/:transactionId", "routes/payment-page.tsx"),
+    route("/notifications", "routes/notifications-page.tsx"),
     route("/transactions", "routes/transactions-page.tsx"),
   ]),
 
@@ -57,6 +58,11 @@ export default [
   route("/register", "routes/auth/register-page.tsx"),
   route("/forgot-password", "routes/auth/forgot-password-page.tsx"),
   route("/reset-password", "routes/auth/reset-password-page.tsx"),
+
+  // =====================
+  // Check-in (Public, no layout)
+  // =====================
+  route("/check-in/:token", "routes/check-in-page.tsx"),
 
   // =====================
   // 404

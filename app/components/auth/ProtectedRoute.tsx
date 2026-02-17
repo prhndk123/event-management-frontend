@@ -1,29 +1,38 @@
-import { ReactNode, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router';
-import { useAuthStore } from '~/store/auth-store';
+import { ReactNode, useEffect } from "react";
+import { Navigate, useLocation } from "react-router";
+import { useAuthStore } from "~/modules/auth/auth.store";
 
 interface ProtectedRouteProps {
-    children: ReactNode;
-    requiredRole?: 'CUSTOMER' | 'ORGANIZER';
+  children: ReactNode;
+  requiredRole?: "CUSTOMER" | "ORGANIZER";
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-    const location = useLocation();
-    const { isAuthenticated, user, checkAuth } = useAuthStore();
+export function ProtectedRoute({
+  children,
+  requiredRole,
+}: ProtectedRouteProps) {
+  const location = useLocation();
+  const { isAuthenticated, user } = useAuthStore();
 
-    useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
+  // checkAuth removed as it's not available in store
+  // useEffect(() => {
+  //     checkAuth();
+  // }, [checkAuth]);
 
-    // Not authenticated - redirect to login
-    if (!isAuthenticated) {
-        return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
-    }
+  // Not authenticated - redirect to login
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(location.pathname)}`}
+        replace
+      />
+    );
+  }
 
-    // Authenticated but wrong role
-    if (requiredRole && user?.role !== requiredRole) {
-        return <Navigate to="/unauthorized" replace />;
-    }
+  // Authenticated but wrong role
+  if (requiredRole && user?.role !== requiredRole) {
+    return <Navigate to="/unauthorized" replace />;
+  }
 
-    return <>{children}</>;
+  return <>{children}</>;
 }
