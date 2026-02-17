@@ -32,9 +32,6 @@ export const notificationService = {
     limit = 20,
     isRead?: boolean,
   ): Promise<NotificationListResponse> => {
-    console.log(
-      `[NotificationService] Fetching notifications page=${page} limit=${limit}`,
-    );
     const res = await api.get("/notifications", {
       params: { page, limit, isRead },
     });
@@ -48,13 +45,11 @@ export const notificationService = {
   },
 
   markAsRead: async (id: number): Promise<Notification> => {
-    console.log(`[NotificationService] Marking notification ${id} as read`);
     const res = await api.put(`/notifications/${id}/read`);
     return res.data;
   },
 
   markAllAsRead: async (): Promise<void> => {
-    console.log("[NotificationService] Marking all as read");
     await api.put("/notifications/mark-all-read");
   },
 };
