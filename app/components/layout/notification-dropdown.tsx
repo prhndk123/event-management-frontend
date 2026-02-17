@@ -60,19 +60,23 @@ export function NotificationDropdown() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch unread count with polling
+  // Fetch unread count with optimized polling
   const { data: unreadData } = useQuery({
     queryKey: ["notifications-unread-count"],
     queryFn: notificationService.getUnreadCount,
-    refetchInterval: 30000, // 30s polling
+    staleTime: 1000 * 30, // 30s stale time
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: 60000, // 60s polling (optional improvement)
   });
 
-  // Fetch notifications when dropdown is open
+  // Fetch notifications when dropdown is open (Unread only)
   const { data: notificationsData } = useQuery({
     queryKey: ["notifications-dropdown"],
-    queryFn: () => notificationService.getNotifications(1, 10),
+    queryFn: () => notificationService.getNotifications(1, 10, false), // Fetch unread only
     enabled: isOpen,
-    refetchInterval: isOpen ? 15000 : false,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
   });
 
   const markAsReadMutation = useMutation({
@@ -82,6 +86,9 @@ export function NotificationDropdown() {
         queryKey: ["notifications-unread-count"],
       });
       queryClient.invalidateQueries({ queryKey: ["notifications-dropdown"] });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "notifications",
+      });
     },
   });
 
@@ -92,6 +99,9 @@ export function NotificationDropdown() {
         queryKey: ["notifications-unread-count"],
       });
       queryClient.invalidateQueries({ queryKey: ["notifications-dropdown"] });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "notifications",
+      });
     },
   });
 

@@ -102,36 +102,68 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Currently only support single event checkout
-    const firstItem = items[0];
-
     try {
       setIsProcessing(true);
 
-      // Create transaction via API
-      const transactionData = {
-        ticketTypeId: Number(firstItem.ticketType.id),
-        quantity: firstItem.quantity,
-        voucherCode: appliedVoucher?.code,
-        couponCode: appliedCouponCode || undefined,
-        pointsToUse: pointsToUse,
-      };
+      let remainingPointsToUse = pointsToUse;
+      const createdTransactionIds: number[] = [];
 
-      const transaction = await createTransaction(
-        Number(firstItem.event.id),
-        transactionData,
+      // Process items sequentially
+      for (const [index, item] of items.entries()) {
+        // Distribute points: simple greedy approach
+        // We assume backend validates points availability.
+        // We only allocate up to item cost to avoid error "points > subtotal" (though backend handles min)
+        // AND validation "points > available" (which decreases after each txn)
+
+        // Note: We can't easily know EXACTLY how many points backend used without checking response
+        // But for safety, we assume it uses what we ask, provided it's <= item cost.
+
+        const itemCost = item.ticketType.price * item.quantity;
+        const pointsForThis = Math.min(remainingPointsToUse, itemCost);
+
+        // Pass voucher/coupon only to the FIRST transaction to avoid "Usage Limit Exceeded" or double discounts
+        const voucherForThis = index === 0 ? appliedVoucher?.code : undefined;
+        const couponForThis = index === 0 ? appliedCouponCode : undefined;
+
+        const transactionData = {
+          ticketTypeId: Number(item.ticketType.id),
+          quantity: item.quantity,
+          voucherCode: voucherForThis,
+          couponCode: couponForThis || undefined,
+          pointsToUse: pointsForThis,
+        };
+
+        const transaction = await createTransaction(
+          Number(item.event.id),
+          transactionData,
+        );
+
+        if (transaction && transaction.id) {
+          createdTransactionIds.push(transaction.id);
+          // Decrement points for next loop
+          remainingPointsToUse -= pointsForThis;
+        }
+      }
+
+      toast.success(
+        `Successfully created ${createdTransactionIds.length} orders!`,
       );
-
-      toast.success("Order placed successfully!");
       clearCart();
 
-      // Redirect to payment page with real transaction ID
-      navigate(`/payment/${transaction.id}`);
+      // Redirect to Transactions Dashboard to see all new orders
+      // If only 1 order, we COULD go to payment page, but consistenty is better.
+      // However, user expects to Pay.
+      if (createdTransactionIds.length === 1) {
+        navigate(`/payment/${createdTransactionIds[0]}`);
+      } else {
+        // Navigate to dashboard implies "Go check your list"
+        navigate("/transactions");
+      }
     } catch (error: any) {
       console.error("Checkout error:", error);
       toast.error(
         error.response?.data?.message ||
-          "Failed to create transaction. Please try again.",
+          "Failed to create transaction(s). Please try again.",
       );
     } finally {
       setIsProcessing(false);

@@ -61,6 +61,7 @@ interface Transaction {
   finalPrice: number;
   createdAt: string;
   expiredAt: string;
+  rejectionReason?: string | null;
 }
 
 interface TicketData {
@@ -327,6 +328,22 @@ export default function PaymentPage() {
                 <p className="text-muted-foreground">
                   Your payment has been confirmed! Check your email for tickets.
                 </p>
+              )}
+
+              {transactionStatus === "rejected" && (
+                <div className="space-y-2">
+                  <p className="text-muted-foreground">
+                    Your payment was rejected.
+                  </p>
+                  {transaction.rejectionReason && (
+                    <div className="bg-destructive/10 text-destructive p-3 rounded-lg text-sm font-medium">
+                      Reason: {transaction.rejectionReason}
+                    </div>
+                  )}
+                  <p className="text-muted-foreground text-sm">
+                    Please contact support or try again.
+                  </p>
+                </div>
               )}
 
               {transactionStatus === "expired" && (

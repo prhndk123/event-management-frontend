@@ -18,6 +18,7 @@ export default [
 
     route("/checkout", "routes/checkout-page.tsx"),
     route("/payment/:transactionId", "routes/payment-page.tsx"),
+    route("/notifications", "routes/notifications-page.tsx"),
     route("/transactions", "routes/transactions-page.tsx"),
   ]),
 
