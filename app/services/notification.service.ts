@@ -32,9 +32,12 @@ export const notificationService = {
     limit = 20,
     isRead?: boolean,
   ): Promise<NotificationListResponse> => {
-    const res = await api.get("/notifications", {
-      params: { page, limit, isRead },
-    });
+    const params: { page: number; limit: number; isRead?: boolean } = {
+      page,
+      limit,
+    };
+    if (typeof isRead === "boolean") params.isRead = isRead;
+    const res = await api.get("/notifications", { params });
     return res.data;
   },
 
