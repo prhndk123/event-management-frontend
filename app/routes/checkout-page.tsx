@@ -163,7 +163,7 @@ export default function CheckoutPage() {
       console.error("Checkout error:", error);
       toast.error(
         error.response?.data?.message ||
-          "Failed to create transaction(s). Please try again.",
+        "Failed to create transaction(s). Please try again.",
       );
     } finally {
       setIsProcessing(false);
@@ -220,25 +220,27 @@ export default function CheckoutPage() {
                 {items.map((item) => (
                   <div
                     key={item.ticketType.id}
-                    className="flex gap-4 p-4 rounded-lg bg-muted/50"
+                    className="flex flex-col sm:flex-row gap-4 p-4 rounded-lg bg-muted/50"
                   >
-                    <img
-                      src={item.event.image}
-                      alt={item.event.title}
-                      className="w-24 h-24 rounded-lg object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground truncate">
-                        {item.event.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(item.event.startDate)}
-                      </p>
-                      <p className="text-sm text-primary font-medium mt-1">
-                        {item.ticketType.name} × {item.quantity}
-                      </p>
+                    <div className="flex gap-4 flex-1 min-w-0">
+                      <img
+                        src={item.event.image}
+                        alt={item.event.title}
+                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg object-cover flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground truncate">
+                          {item.event.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(item.event.startDate)}
+                        </p>
+                        <p className="text-sm text-primary font-medium mt-1">
+                          {item.ticketType.name} × {item.quantity}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0">
                       <p className="font-semibold text-foreground">
                         {formatCurrency(item.ticketType.price * item.quantity)}
                       </p>
@@ -307,7 +309,7 @@ export default function CheckoutPage() {
                       {appliedVoucher.discountType === "percentage"
                         ? `${appliedVoucher.discountAmount}% off`
                         : formatCurrency(appliedVoucher.discountAmount) +
-                          " off"}
+                        " off"}
                     </p>
                   </div>
                   <Button

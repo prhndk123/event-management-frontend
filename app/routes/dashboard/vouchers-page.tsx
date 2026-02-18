@@ -25,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { useForm, type SubmitHandler, type Resolver } from 'react-hook-form';
+import { useForm, type SubmitHandler, type Resolver, Controller } from 'react-hook-form';
+import { DatePicker } from '~/components/ui/date-picker';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
@@ -73,7 +74,7 @@ export default function VouchersPage() {
     }
   });
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<VoucherFormValues>({
+  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<VoucherFormValues>({
     resolver: zodResolver(voucherSchema) as Resolver<VoucherFormValues>,
     defaultValues: {
       discountType: "FIXED",
@@ -298,19 +299,35 @@ export default function VouchersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  {...register("startDate")}
+                <Controller
+                  name="startDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      date={field.value ? new Date(field.value) : undefined}
+                      setDate={(date) => {
+                        if (date) field.onChange(date.toISOString());
+                      }}
+                      placeholder="Select start date"
+                    />
+                  )}
                 />
                 {errors.startDate && <p className="text-xs text-destructive">{errors.startDate.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endDate">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  {...register("endDate")}
+                <Controller
+                  name="endDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      date={field.value ? new Date(field.value) : undefined}
+                      setDate={(date) => {
+                        if (date) field.onChange(date.toISOString());
+                      }}
+                      placeholder="Select end date"
+                    />
+                  )}
                 />
                 {errors.endDate && <p className="text-xs text-destructive">{errors.endDate.message}</p>}
               </div>

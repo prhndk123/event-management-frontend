@@ -10,8 +10,9 @@ import { formatCurrency, formatDateTime } from '~/types';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { useState } from 'react';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as eventService from '~/services/event.service';
+import { toast } from 'sonner';
 
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,6 +20,25 @@ export default function EventsPage() {
     queryKey: ['organizer-events'],
     queryFn: () => eventService.getOrganizerEvents(),
   });
+
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (eventId: number) => eventService.deleteEvent(eventId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizer-events'] });
+      toast.success("Event deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to delete event");
+    },
+  });
+
+  const handleDelete = (eventId: number, eventTitle: string) => {
+    if (window.confirm(`Are you sure you want to delete "${eventTitle}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(eventId);
+    }
+  };
 
   const filteredEvents = events?.filter((event: any) =>
     event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -138,13 +158,16 @@ export default function EventsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem asChild>
-                              <Link to={`/dashboard/events/${event.id}`}>View Details</Link>
+                              <Link to={`/events/${event.id}`}>View Details</Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                              <Link to={`/dashboard/events/${event.id}/edit`}>Edit Event</Link>
+                              <Link to={`/dashboard/events/edit/${event.id}`}>Edit Event</Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              onClick={() => handleDelete(event.id, event.title)}
+                            >
                               Delete Event
                             </DropdownMenuItem>
                           </DropdownMenuContent>

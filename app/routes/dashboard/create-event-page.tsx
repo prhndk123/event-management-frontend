@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, useFieldArray, type SubmitHandler, type Resolver } from "react-hook-form";
+import { useForm, useFieldArray, type SubmitHandler, type Resolver, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router";
@@ -48,6 +48,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "~/components/ui/dialog";
+import { DatePicker } from "~/components/ui/date-picker";
 
 import { EVENT_CATEGORIES, LOCATIONS } from "~/types";
 import { createEvent } from "~/services/event.service";
@@ -310,13 +311,19 @@ export default function CreateEventPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="startDate">Start Date & Time</Label>
                                 <div className="relative">
-                                    <Input
-                                        id="startDate"
-                                        type="datetime-local"
-                                        className="pl-10"
-                                        {...register("startDate")}
+                                    <Controller
+                                        name="startDate"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <DatePicker
+                                                date={field.value ? new Date(field.value) : undefined}
+                                                setDate={(date) => {
+                                                    if (date) field.onChange(date.toISOString());
+                                                }}
+                                                placeholder="Select start date"
+                                            />
+                                        )}
                                     />
-                                    <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 </div>
                                 {errors.startDate && <p className="text-xs text-destructive">{errors.startDate.message}</p>}
                             </div>
@@ -324,13 +331,19 @@ export default function CreateEventPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="endDate">End Date & Time</Label>
                                 <div className="relative">
-                                    <Input
-                                        id="endDate"
-                                        type="datetime-local"
-                                        className="pl-10"
-                                        {...register("endDate")}
+                                    <Controller
+                                        name="endDate"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <DatePicker
+                                                date={field.value ? new Date(field.value) : undefined}
+                                                setDate={(date) => {
+                                                    if (date) field.onChange(date.toISOString());
+                                                }}
+                                                placeholder="Select end date"
+                                            />
+                                        )}
                                     />
-                                    <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 </div>
                                 {errors.endDate && <p className="text-xs text-destructive">{errors.endDate.message}</p>}
                             </div>
