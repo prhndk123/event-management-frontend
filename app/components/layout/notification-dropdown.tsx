@@ -167,7 +167,7 @@ export function NotificationDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-border bg-popover shadow-xl z-50 overflow-hidden"
+            className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-full mt-2 sm:w-96 rounded-xl border border-border bg-popover shadow-xl z-50 overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -199,15 +199,13 @@ export function NotificationDropdown() {
                   <button
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors text-left ${
-                      !notification.isRead ? "bg-primary/5" : ""
-                    }`}
+                    className={`w-full flex items-start gap-3 px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors text-left ${!notification.isRead ? "bg-primary/5" : ""
+                      }`}
                   >
                     {/* Icon */}
                     <div
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-0.5 ${
-                        !notification.isRead ? "bg-primary/10" : "bg-muted"
-                      }`}
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-0.5 ${!notification.isRead ? "bg-primary/10" : "bg-muted"
+                        }`}
                     >
                       {notificationIcons[notification.type] || (
                         <Bell className="h-4 w-4 text-muted-foreground" />
@@ -217,11 +215,10 @@ export function NotificationDropdown() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-sm leading-tight ${
-                          !notification.isRead
-                            ? "font-semibold text-foreground"
-                            : "text-foreground/80"
-                        }`}
+                        className={`text-sm leading-tight ${!notification.isRead
+                          ? "font-semibold text-foreground"
+                          : "text-foreground/80"
+                          }`}
                       >
                         {notification.title}
                       </p>

@@ -32,7 +32,9 @@ import { useCartStore } from "~/store/cart-store";
 import { formatCurrency, formatDate, formatTime, TicketType, Event } from "~/types";
 import { toast } from "sonner";
 import { useAuthStore } from "~/modules/auth/auth.store";
-import { getEventById, getEventReviews } from "~/services/event.service";
+import { getEventById, getEventReviews, submitReview } from "~/services/event.service";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Textarea } from "~/components/ui/textarea";
 
 export default function EventDetailPage() {
   const { eventId } = useParams();
@@ -51,11 +53,46 @@ export default function EventDetailPage() {
   });
 
   // Fetch Reviews
-  const { data: eventReviews = [] } = useQuery<any[]>({
+  const queryClient = useQueryClient();
+  const { data: eventReviews = [], isLoading: isReviewsLoading } = useQuery<any[]>({
     queryKey: ["reviews", eventId],
     queryFn: () => getEventReviews(Number(eventId)),
     enabled: !!eventId && !isNaN(Number(eventId)),
   });
+
+  // Review Form State
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const reviewMutation = useMutation({
+    mutationFn: (data: { rating: number; comment: string }) =>
+      submitReview(Number(eventId), data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", eventId] });
+      toast.success("Review submitted successfully!");
+      setComment("");
+      setRating(5);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to submit review");
+    },
+    onSettled: () => {
+      setIsSubmittingReview(false);
+    }
+  });
+
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating < 1) {
+      toast.error("Please select a rating");
+      return;
+    }
+    setIsSubmittingReview(true);
+    reviewMutation.mutate({ rating, comment });
+  };
+
+  const hasEventEnded = event ? new Date(event.endDate) < new Date() : false;
 
   if (isEventLoading) {
     return (
@@ -222,7 +259,11 @@ export default function EventDetailPage() {
                       <span>{event.organizer.totalEvents} events</span>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/organizer/${event.organizerId}`)}
+                  >
                     View Profile
                   </Button>
                 </div>
@@ -246,26 +287,63 @@ export default function EventDetailPage() {
                   )}
                 </div>
 
-                {eventReviews.length > 0 ? (
+                {/* Review Form */}
+                {isAuthenticated && hasEventEnded && (
+                  <div className="mb-8 p-6 rounded-xl border border-primary/20 bg-primary/5">
+                    <h3 className="font-semibold text-foreground mb-4">Leave a Review</h3>
+                    <form onSubmit={handleSubmitReview} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground block">
+                          Your Rating
+                        </label>
+                        <RatingStars
+                          rating={rating}
+                          interactive
+                          onChange={setRating}
+                          size="lg"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground block">
+                          Your Feedback
+                        </label>
+                        <Textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Tell us about your experience..."
+                          className="bg-background min-h-[100px]"
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        disabled={isSubmittingReview}
+                        className="w-full sm:w-auto"
+                      >
+                        {isSubmittingReview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Submit Review
+                      </Button>
+                    </form>
+                  </div>
+                )}
+
+                {isReviewsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : eventReviews.length > 0 ? (
                   <div className="space-y-4">
-                    {eventReviews.map((review) => (
+                    {eventReviews.map((review, index) => (
                       <div
-                        key={review.id}
+                        key={index}
                         className="p-4 rounded-lg bg-muted/50"
                       >
                         <div className="flex items-start gap-3 mb-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage
-                              src={review.user.avatar}
-                              alt={review.user.name}
-                            />
-                            <AvatarFallback>
-                              <User className="h-4 w-4" />
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                            {review.reviewerName.charAt(0)}
+                          </div>
                           <div className="flex-1">
                             <p className="font-medium text-foreground">
-                              {review.user.name}
+                              {review.reviewerName}
                             </p>
                             <div className="flex items-center gap-2">
                               <RatingStars rating={review.rating} size="sm" />
@@ -275,8 +353,8 @@ export default function EventDetailPage() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {review.comment}
+                        <p className="text-sm text-muted-foreground italic">
+                          "{review.comment}"
                         </p>
                       </div>
                     ))}

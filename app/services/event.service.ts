@@ -122,3 +122,38 @@ export const getOrganizerAttendees = async () => {
   const response = await api.get("/events/me/attendees");
   return response.data;
 };
+
+/**
+ * Submit a review for an event
+ */
+export const submitReview = async (
+  eventId: number,
+  data: { rating: number; comment: string },
+) => {
+  const response = await api.post(`/events/${eventId}/reviews`, data);
+  return response.data;
+};
+
+/**
+ * Get organizer profile by ID
+ */
+export const getOrganizerProfile = async (organizerId: number | string) => {
+  const response = await api.get(`/organizers/${organizerId}`);
+  return response.data;
+};
+
+/**
+ * Update event (Organizer only)
+ */
+export const updateEvent = async (eventId: number, data: any) => {
+  const response = await api.patch(`/events/${eventId}`, data);
+  return response.data;
+};
+
+/**
+ * Delete event (Organizer only)
+ */
+export const deleteEvent = async (eventId: number) => {
+  const response = await api.delete(`/events/${eventId}`);
+  return response.data;
+};

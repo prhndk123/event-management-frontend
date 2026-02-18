@@ -15,6 +15,7 @@ export default [
 
     route("/events", "routes/events-page.tsx"),
     route("/events/:eventId", "routes/event-detail-page.tsx"),
+    route("/organizer/:organizerId", "routes/organizer-profile-page.tsx"),
 
     route("/checkout", "routes/checkout-page.tsx"),
     route("/payment/:transactionId", "routes/payment-page.tsx"),
@@ -43,6 +44,7 @@ export default [
       index("routes/dashboard/dashboard-page.tsx"),
       route("events", "routes/dashboard/events-page.tsx"),
       route("events/create", "routes/dashboard/create-event-page.tsx"),
+      route("events/edit/:eventId", "routes/dashboard/edit-event-page.tsx"),
       route("transactions", "routes/dashboard/transactions-page.tsx"),
       route("attendees", "routes/dashboard/attendees-page.tsx"),
       route("vouchers", "routes/dashboard/vouchers-page.tsx"),
