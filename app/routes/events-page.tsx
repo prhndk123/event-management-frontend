@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
-import { Search, SlidersHorizontal, X, Calendar, Loader2 } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Calendar, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
 import {
@@ -71,6 +71,22 @@ export default function EventsPage() {
 
   const events = data?.data || [];
 
+  // Pagination
+  const EVENTS_PER_PAGE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(events.length / EVENTS_PER_PAGE);
+
+  const paginatedEvents = useMemo(() => {
+    const start = (currentPage - 1) * EVENTS_PER_PAGE;
+    return events.slice(start, start + EVENTS_PER_PAGE);
+  }, [events, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
   const hasActiveFilters =
     filters.category !== 'all' ||
     filters.location !== 'all' ||
@@ -99,7 +115,11 @@ export default function EventsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Browse Events</h1>
           <p className="text-muted-foreground">
-            {isLoading ? 'Loading events...' : `Discover ${events.length} amazing events near you`}
+            {isLoading
+              ? 'Loading events...'
+              : events.length > EVENTS_PER_PAGE
+                ? `Showing ${(currentPage - 1) * EVENTS_PER_PAGE + 1}–${Math.min(currentPage * EVENTS_PER_PAGE, events.length)} of ${events.length} events`
+                : `Discover ${events.length} amazing events near you`}
           </p>
         </div>
 
@@ -283,11 +303,47 @@ export default function EventsPage() {
             }}
           />
         ) : events.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {events.map((event: any, index: number) => (
-              <EventCard key={event.id} event={event} index={index} />
-            ))}
-          </div>
+          <>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedEvents.map((event: any, index: number) => (
+                <EventCard key={event.id} event={event} index={index} />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-10">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={page === currentPage ? 'default' : 'outline'}
+                    size="icon"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <EmptyState
             icon={Calendar}

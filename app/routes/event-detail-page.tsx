@@ -32,7 +32,7 @@ import { useCartStore } from "~/store/cart-store";
 import { formatCurrency, formatDate, formatTime, TicketType, Event } from "~/types";
 import { toast } from "sonner";
 import { useAuthStore } from "~/modules/auth/auth.store";
-import { getEventById, getEventReviews, submitReview } from "~/services/event.service";
+import { getEventById, getEventReviews, submitReview, getCheckInStatus } from "~/services/event.service";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "~/components/ui/textarea";
 
@@ -59,6 +59,15 @@ export default function EventDetailPage() {
     queryFn: () => getEventReviews(Number(eventId)),
     enabled: !!eventId && !isNaN(Number(eventId)),
   });
+
+  // Fetch user's check-in status for this event
+  const { data: checkInData } = useQuery<{ checkedIn: boolean }>({
+    queryKey: ["check-in-status", eventId],
+    queryFn: () => getCheckInStatus(Number(eventId)),
+    enabled: !!eventId && !isNaN(Number(eventId)) && isAuthenticated,
+  });
+
+  const hasCheckedIn = checkInData?.checkedIn ?? false;
 
   // Review Form State
   const [rating, setRating] = useState(5);
@@ -288,7 +297,7 @@ export default function EventDetailPage() {
                 </div>
 
                 {/* Review Form */}
-                {isAuthenticated && hasEventEnded && (
+                {isAuthenticated && hasCheckedIn && (
                   <div className="mb-8 p-6 rounded-xl border border-primary/20 bg-primary/5">
                     <h3 className="font-semibold text-foreground mb-4">Leave a Review</h3>
                     <form onSubmit={handleSubmitReview} className="space-y-4">
@@ -484,11 +493,20 @@ export default function EventDetailPage() {
                     className="w-full btn-gradient"
                     size="lg"
                     onClick={handleBuyTicket}
-                    disabled={event.availableSeats === 0}
+                    disabled={event.availableSeats === 0 || hasEventEnded}
                   >
                     <Ticket className="h-5 w-5 mr-2" />
-                    {event.availableSeats === 0 ? "Sold Out" : "Get Tickets"}
+                    {hasEventEnded
+                      ? "Event Ended"
+                      : event.availableSeats === 0
+                        ? "Sold Out"
+                        : "Get Tickets"}
                   </Button>
+                  {hasEventEnded && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Event has ended. Ticket purchase is no longer available.
+                    </p>
+                  )}
                 </div>
               </div>
             </motion.div>

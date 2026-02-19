@@ -12,6 +12,7 @@ interface EventCardProps {
 export function EventCard({ event, index = 0 }: EventCardProps) {
   const isFree = event.price === 0;
   const soldOut = event.availableSeats === 0;
+  const hasEnded = new Date(event.endDate) < new Date();
 
   return (
     <motion.div
@@ -39,11 +40,15 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
                 Free
               </Badge>
             )}
-            {soldOut && (
+            {hasEnded ? (
+              <Badge variant="destructive">
+                Ended
+              </Badge>
+            ) : soldOut ? (
               <Badge variant="destructive">
                 Sold Out
               </Badge>
-            )}
+            ) : null}
           </div>
 
           {/* Category */}
@@ -82,12 +87,14 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Users className="h-3.5 w-3.5" />
                 <span>
-                  {soldOut
-                    ? "Sold Out"
-                    : `${Math.max(event.availableSeats, 0)} seats left`}
+                  {hasEnded
+                    ? "Event Ended"
+                    : soldOut
+                      ? "Sold Out"
+                      : `${Math.max(event.availableSeats, 0)} seats left`}
                 </span>
               </div>
-              {event.totalSeats > 0 && (
+              {!hasEnded && event.totalSeats > 0 && (
                 <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full ${soldOut ? 'bg-destructive' : 'bg-primary'}`}
