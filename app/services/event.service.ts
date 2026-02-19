@@ -107,6 +107,14 @@ export const getEventReviews = async (eventId: number) => {
   const response = await api.get(`/events/${eventId}/reviews`);
   return response.data;
 };
+
+/**
+ * Get current user's check-in status for an event
+ */
+export const getCheckInStatus = async (eventId: number) => {
+  const response = await api.get(`/events/${eventId}/check-in-status`);
+  return response.data;
+};
 /**
  * Get all vouchers for the current organizer
  */

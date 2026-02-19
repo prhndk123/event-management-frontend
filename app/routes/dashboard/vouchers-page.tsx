@@ -60,6 +60,11 @@ export default function VouchersPage() {
     queryFn: () => eventService.getOrganizerEvents(),
   });
 
+  // Filter out ended events — only show active events in the dropdown
+  const activeEvents = events?.filter(
+    (event: any) => new Date(event.endDate) >= new Date()
+  );
+
   const createVoucherMutation = useMutation({
     mutationFn: ({ eventId, data }: { eventId: number, data: any }) =>
       eventService.createVoucher(eventId, data),
@@ -238,11 +243,17 @@ export default function VouchersPage() {
                   <SelectValue placeholder="Select an event" />
                 </SelectTrigger>
                 <SelectContent>
-                  {events?.map((event: any) => (
-                    <SelectItem key={event.id} value={event.id.toString()}>
-                      {event.title}
-                    </SelectItem>
-                  ))}
+                  {activeEvents && activeEvents.length > 0 ? (
+                    activeEvents.map((event: any) => (
+                      <SelectItem key={event.id} value={event.id.toString()}>
+                        {event.title}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      No active events available for voucher creation
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
               {errors.eventId && <p className="text-xs text-destructive">{errors.eventId.message}</p>}
