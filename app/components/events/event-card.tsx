@@ -21,7 +21,7 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
       <Link
-        to={`/events/${event.id}`}
+        to={event.slug ? `/events/${event.slug}` : `/events/${event.id}`}
         className="group block card-elevated overflow-hidden"
       >
         {/* Image */}

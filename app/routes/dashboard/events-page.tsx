@@ -158,7 +158,7 @@ export default function EventsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem asChild>
-                              <Link to={`/events/${event.id}`}>View Details</Link>
+                              <Link to={event.slug ? `/events/${event.slug}` : `/events/${event.id}`}>View Details</Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/dashboard/events/edit/${event.id}`}>Edit Event</Link>

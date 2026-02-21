@@ -14,7 +14,8 @@ export default [
     index("routes/landing-page.tsx"),
 
     route("/events", "routes/events-page.tsx"),
-    route("/events/:eventId", "routes/event-detail-page.tsx"),
+    route("/events/:slug", "routes/event-slug-page.tsx"),
+    route("/events/id/:eventId", "routes/event-detail-page.tsx"),
     route("/organizer/:organizerId", "routes/organizer-profile-page.tsx"),
 
     route("/checkout", "routes/checkout-page.tsx"),
