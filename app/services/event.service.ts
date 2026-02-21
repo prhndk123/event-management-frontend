@@ -66,6 +66,14 @@ export const getEventById = async (id: number | string) => {
 };
 
 /**
+ * Get event by slug
+ */
+export const getEventBySlug = async (slug: string) => {
+  const response = await api.get(`/events/${slug}`);
+  return response.data;
+};
+
+/**
  * Create new event (Organizer only)
  */
 export const createEvent = async (data: CreateEventData) => {

@@ -123,7 +123,7 @@ export default function OrganizerProfilePage() {
                                 {organizer.events.map((event: any) => (
                                     <Link
                                         key={event.id}
-                                        to={`/events/${event.id}`}
+                                        to={event.slug ? `/events/${event.slug}` : `/events/${event.id}`}
                                         className="group bg-card rounded-lg border border-border overflow-hidden hover:border-primary transition-colors shadow-sm"
                                     >
                                         <div className="aspect-video relative overflow-hidden">

@@ -6,6 +6,7 @@ import { Link } from "react-router";
 interface Event {
   id: number;
   title: string;
+  slug?: string;
   image: string;
   startDate: string;
   location: string;
@@ -119,7 +120,7 @@ export function HeroEventStack({ events }: HeroEventStackProps) {
                   {isFront && (
                     <div className="mt-4">
                       <Link
-                        to={`/events/${event.id}`}
+                        to={event.slug ? `/events/${event.slug}` : `/events/${event.id}`}
                         className="inline-flex items-center justify-center w-full py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-white/90 transition-colors"
                       >
                         View Details
